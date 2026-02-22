@@ -462,6 +462,7 @@ light:
     id: red_led
     internal: True
     restore_mode: ALWAYS_OFF
+    default_transition_length: 0.25s
 
   - platform: monochromatic
     output: gpio_amber
@@ -469,6 +470,7 @@ light:
     id: amber_led
     internal: True
     restore_mode: ALWAYS_OFF
+    default_transition_length: 0.25s
 
   - platform: monochromatic
     output: gpio_blue
@@ -476,6 +478,7 @@ light:
     id: blue_led
     internal: True
     restore_mode: ALWAYS_OFF
+    default_transition_length: 1s
 
 button:
   - platform: restart
