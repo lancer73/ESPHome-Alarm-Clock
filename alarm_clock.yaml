@@ -420,7 +420,7 @@ time:
             }
 
             if (id(next_alarm) == 0) {
-              id(alarm_state).publish_state(true);
+              id(alarm_state).turn_on();
               if (id(alarm_on_once)[thisday]) {
                 id(alarm_on)[thisday] = false;
                 id(alarm_on_once)[thisday] = false;
