@@ -210,7 +210,7 @@ globals:
   # Time in minutes the alarm is allowed to sound.
   - id: alarm_timeout
     type: int
-    initial_value: "0"
+    initial_value: "1420"
     restore_value: false
   # State of the externally controlled led.
   - id: led_state
@@ -410,9 +410,7 @@ time:
               id(next_alarm) = 2880;
             }
 
-            if (id(alarm_state).state) {
-              id(alarm_timeout++);
-            }
+            id(alarm_timeout)++;
 
             if (id(alarm_timeout) == id(alarm_off).state) {
               id(alarm_state).turn_off();
@@ -858,7 +856,15 @@ sensor:
     unit_of_measurement: min
     accuracy_decimals: 0
     lambda: "return id(next_alarm);"
-
+    
+  - platform: template
+    name: "After last alarm"
+    id: alarm_countup
+    entity_category: diagnostic
+    device_class: duration
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    lambda: "return id(alarm_timeout);"
 
 binary_sensor:
   # Button down: Decrease alarm time when time is shown, silence alarm at alarm time set button left to true else
