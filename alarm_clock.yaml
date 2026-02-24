@@ -856,6 +856,8 @@ sensor:
     unit_of_measurement: min
     accuracy_decimals: 0
     lambda: "return id(next_alarm);"
+    web_server:
+      sorting_group_id: alarm_diag
     
   - platform: template
     name: "After last alarm"
@@ -865,6 +867,8 @@ sensor:
     unit_of_measurement: min
     accuracy_decimals: 0
     lambda: "return id(alarm_timeout);"
+    web_server:
+      sorting_group_id: alarm_diag
 
 binary_sensor:
   # Button down: Decrease alarm time when time is shown, silence alarm at alarm time set button left to true else
