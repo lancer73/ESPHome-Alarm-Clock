@@ -1,0 +1,1214 @@
+# Enable the webserver and create groups for the dashboard
+# The webserver is for control purposes. No OTA and no LOG
+# Run fully local.
+web_server:
+  port: 80
+  version: 3
+  local: True
+  sorting_groups:
+    - id: alarm_time
+      name: "Alarm times"
+      sorting_weight: 10
+    - id: alarm_control
+      name: "Control"
+      sorting_weight: 20
+    - id: alarm_environment
+      name: "Environment"
+      sorting_weight: 30
+    - id: alarm_config
+      name: "Alarm configuration"
+      sorting_weight: 40
+    - id: alarm_diag
+      name: "Diagnostics"
+      sorting_weight: 50
+
+globals:
+  # Which content to show
+  - id: disp_line
+    type: int
+    restore_value: false
+    initial_value: "9"
+  # To set the brightness of the MAX7219. Needs to be between 0 and 15
+  - id: disp_brightness
+    type: int
+    restore_value: False
+    initial_value: "0"
+  # Automatic turning on and off of the display
+  - id: display_onoff_hour
+    type: int[2]
+    restore_value: True
+    initial_value: '{7,23}'
+  - id: display_onoff_minute
+    type: int[2]
+    restore_value: True
+    initial_value: '{0,0}'
+  # Alarm times. One for every day of the week
+  # The hour the alarm needs to sound
+  - id: alarm_hour
+    type: int[7]
+    restore_value: True
+    initial_value: '{7,7,7,7,7,7,7}'
+  # The Minute the alarm needs to sound
+  - id: alarm_minute
+    type: int[7]
+    restore_value: True
+    initial_value: '{0,0,0,0,0,0,0}'
+  # Alarm enable/disable
+  - id: alarm_on
+    type: bool[7]
+    restore_value: True
+    initial_value: '{false,false,false,false,false,false,false}'
+  # If this is enabled the alarm will sound and then disable itself
+  - id: alarm_on_once
+    type: bool[7]
+    restore_value: True
+    initial_value: '{false,false,false,false,false,false,false}'
+  # If this counter reaches 0 the display switches back to line 0. Set in seconds
+  - id: disp_timeout
+    type: int
+    initial_value: "0"
+    restore_value: False
+  # Wether the left button (down) is pressed
+  - id: btn_left
+    type: bool
+    restore_value: False
+    initial_value: "false"
+  # Wether the right button (up) is pressed
+  - id: btn_right
+    type: bool
+    restore_value: false
+    initial_value: "false"
+  # Time in minutes the alarm is allowed to sound.
+  - id: alarm_timeout
+    type: int
+    initial_value: "1420"
+    restore_value: false
+  # Countdown timer in minutes for the next alarm
+  - id: next_alarm
+    type: int
+    initial_value: "2880"
+    restore_value: false
+  # We are in the time of that that the display should be off
+  - id: offperiod
+    type: bool
+    initial_value: "false"
+    restore_value: false
+
+i2c:
+  #ESP32
+  sda: ${i2csdapin}
+  scl: ${i2csclpin}
+  scan: False
+  frequency: 400kHz
+
+spi:
+  clk_pin: ${spiclkpin}
+  mosi_pin: ${spimospin}
+
+output:
+  - platform: ledc
+    pin: ${buzzerpin}
+    id: buzzer_output
+
+rtttl:
+  output: buzzer_output
+  id: buzzer_pwm
+
+# Make the alarm times presentable in HA
+datetime:
+  - platform: template
+    type: time
+    name: "Display on at"
+    entity_category: config
+    lambda: |-
+      ESPTime time;
+      time.hour = id(display_onoff_hour)[0];
+      time.minute = id(display_onoff_minute)[0];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(display_onoff_hour)[0] = x.hour;
+            id(display_onoff_minute)[0] = x.minute;
+    web_server:
+      sorting_weight: 10
+      sorting_group_id: alarm_config
+
+  - platform: template
+    type: time
+    name: "Display off at"
+    entity_category: config
+    lambda: |-
+      ESPTime time;
+      time.hour = id(display_onoff_hour)[1];
+      time.minute = id(display_onoff_minute)[1];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(display_onoff_hour)[1] = x.hour;
+            id(display_onoff_minute)[1] = x.minute;
+    web_server:
+      sorting_weight: 11
+      sorting_group_id: alarm_config
+
+  - platform: template
+    type: time
+    name: "Monday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[1];
+      time.minute = id(alarm_minute)[1];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[1] = x.hour;
+            id(alarm_minute)[1] = x.minute;
+    web_server:
+      sorting_weight: 10
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Saturday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[6];
+      time.minute = id(alarm_minute)[6];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[6] = x.hour;
+            id(alarm_minute)[6] = x.minute;
+    web_server:
+      sorting_weight: 60
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Sunday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[0];
+      time.minute = id(alarm_minute)[0];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[0] = x.hour;
+            id(alarm_minute)[0] = x.minute;
+    web_server:
+      sorting_weight: 70
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Tuesday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[2];
+      time.minute = id(alarm_minute)[2];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[2] = x.hour;
+            id(alarm_minute)[2] = x.minute;
+    web_server:
+      sorting_weight: 20
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Wednesday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[3];
+      time.minute = id(alarm_minute)[3];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[3] = x.hour;
+            id(alarm_minute)[3] = x.minute;
+    web_server:
+      sorting_weight: 30
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Thursday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[4];
+      time.minute = id(alarm_minute)[4];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[4] = x.hour;
+            id(alarm_minute)[4] = x.minute;
+    web_server:
+      sorting_weight: 40
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Friday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[5];
+      time.minute = id(alarm_minute)[5];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[5] = x.hour;
+            id(alarm_minute)[5] = x.minute;
+    web_server:
+      sorting_weight: 50
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+# Get the time from an NTP time source so the alarm will stay on time even when HA is down
+time:
+  - platform: sntp
+    id: esptime
+    timezone: Europe/Amsterdam
+    servers:
+     - ${ntpserver}
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (time.day_of_week - 1);
+            int nowmin = (time.hour * 60) + time.minute;
+            int onat = (id(display_onoff_hour)[0] * 60) + id(display_onoff_minute)[0];
+            int offat = (id(display_onoff_hour)[1] * 60) + id(display_onoff_minute)[1];
+
+            id(recalculate).press();
+
+            id(alarm_timeout)++;
+
+            if (nowmin == onat || id(on_before).state == id(next_alarm)) {
+              id(display_state).turn_on();
+            } 
+
+            if (id(alarm_timeout) == id(alarm_off).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+            }
+
+            if (id(next_alarm) == 0) {
+              id(alarm_state).turn_on();
+              if (id(alarm_on_once)[thisday]) {
+                id(alarm_on)[thisday] = false;
+                id(alarm_on_once)[thisday] = false;
+              }
+            }
+      - seconds: /1
+        then:
+          - lambda: |-
+              id(disp_timeout)++;
+              if (id(disp_timeout) > id(disp_return).state) {
+                id(disp_line) = 0;
+                // Also turn display off when in the off-period, but not in the set pre and post alarm period
+                if (id(offperiod) && id(off_after).state < id(alarm_timeout) && id(on_before).state < id(next_alarm) && id(display_onoff).state && !id(alarm_state).state && !id(alert_now).state) {
+                  id(display_state).turn_off();
+                } 
+              }
+          - if:
+              condition:
+                and:
+                  - switch.is_on: alarm_state
+                  - or:
+                      - switch.is_on: alarm_buzzer
+                      - binary_sensor.is_off: system_status
+                  - not:
+                      rtttl.is_playing:
+              then:
+                - rtttl.play:
+                    rtttl: "${melody}"
+          - if:
+              condition:
+                and:
+                  - switch.is_on: alert_now
+                  - not:
+                      rtttl.is_playing:
+              then:
+                - rtttl.play:
+                    rtttl: "${siren}"
+
+button:
+  - platform: restart
+    name: Restart
+    id: reboot
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: Toggle all alarms off
+    id: toggle_all_off
+    icon: mdi:alarm-off
+    on_press:
+      - lambda: |-
+          for (int i = 0; i <= 6; i++) {
+            id(alarm_on)[i] = false;
+            id(alarm_on_once)[i] = false;
+          }
+    web_server:
+      sorting_weight: 5
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: Toggle weekday alarms on
+    id: toggle_all_on
+    icon: mdi:alarm-multiple
+    on_press:
+      - lambda: |-
+          for (int i = 1; i <= 5; i++) {
+            id(alarm_on)[i] = true;
+          }
+    web_server:
+      sorting_weight: 6
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: Recalculate
+    id: recalculate
+    internal: True
+    on_press: 
+      then:
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (time.day_of_week - 1);
+            int nowmin = (time.hour * 60) + time.minute;
+            int alarmtoday = (id(alarm_hour)[thisday] * 60) + id(alarm_minute)[thisday];
+            int alarmtomorrow = 1440 + (id(alarm_hour)[time.day_of_week % 7] * 60) + id(alarm_minute)[time.day_of_week % 7];
+            int onat = (id(display_onoff_hour)[0] * 60) + id(display_onoff_minute)[0];
+            int offat = (id(display_onoff_hour)[1] * 60) + id(display_onoff_minute)[1];
+
+            if (nowmin < offat && nowmin >= onat) {
+              id(offperiod) = false;
+            } else {
+              id(offperiod) = true;
+            }
+
+            if ((alarmtoday - nowmin) >= 0 && id(alarm_on)[thisday]) {
+              id(next_alarm) = alarmtoday - nowmin;
+            } else if (id(alarm_on)[time.day_of_week % 7]) {
+              id(next_alarm) = alarmtomorrow - nowmin;
+            } else {
+              id(next_alarm) = 2880;
+            }
+
+switch:
+  - platform: template
+    name: "Up⁄Down toggles display"
+    id: updown_onoff
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Automatic display on⁄off"
+    optimistic: True
+    id: display_onoff
+    entity_category: config
+    icon: mdi:monitor
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - button.press:
+            id: recalculate 
+    on_turn_off:
+      then:
+        - button.press:
+            id: recalculate 
+    web_server:
+      sorting_weight: 12
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display Aan⁄Uit"
+    id: display_state
+    optimistic: True
+    restore_mode: ALWAYS_ON
+    icon: mdi:monitor
+    on_turn_on:
+      then:
+        - globals.set: 
+            id: disp_timeout
+            value: '0'
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Alarm"
+    id: alarm_state
+    icon: mdi:bell-ring
+    optimistic: True
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - switch.turn_on: display_state
+        - globals.set: 
+            id: alarm_timeout
+            value: '0'
+    on_turn_off:
+      then:
+        - rtttl.stop
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Alert now"
+    id: alert_now
+    icon: mdi:bell-ring
+    optimistic: True
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - switch.turn_on: display_state
+        - globals.set: 
+            id: alarm_timeout
+            value: '0'
+    on_turn_off:
+      then:
+        - rtttl.stop
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Buzzer with alarm"
+    id: alarm_buzzer
+    optimistic: True
+    entity_category: config
+    icon: mdi:alarm-note
+    web_server:
+      sorting_group_id: alarm_config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    # Alarm switches. Keep at restore_mode: DISABLED. The global variable is stored to flash
+    # Setting the restore mode to something else will override the stored value of the global
+    # variable.
+  - platform: template
+    name: "Monday alarm"
+    lambda: "return id(alarm_on)[1];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[1] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[1] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[1] = false;"
+    web_server:
+      sorting_weight: 11
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Tuesday alarm"
+    lambda: "return id(alarm_on)[2];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[2] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[2] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[2] = false;"
+    web_server:
+      sorting_weight: 21
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Wednesday alarm"
+    lambda: "return id(alarm_on)[3];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[3] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[3] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[3] = false;"
+    web_server:
+      sorting_weight: 31
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Thursday alarm"
+    lambda: "return id(alarm_on)[4];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[4] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[4] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[4] = false;"
+    web_server:
+      sorting_weight: 41
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Friday alarm"
+    lambda: "return id(alarm_on)[5];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[5] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[5] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[5] = false;"
+    restore_mode: DISABLED
+    web_server:
+      sorting_weight: 51
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: "Saturday alarm"
+    lambda: "return id(alarm_on)[6];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[6] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[6] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[6] = false;"
+    web_server:
+      sorting_weight: 61
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Sunday alarm"
+    lambda: "return id(alarm_on)[0];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[0] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[0] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[0] = false;"
+    web_server:
+      sorting_weight: 71
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Monday alarm once"
+    lambda: "return id(alarm_on_once)[1];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on)[1] = true; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[1] = true;"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[1] = false;"
+    web_server:
+      sorting_weight: 12
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Tuesday alarm once"
+    lambda: "return id(alarm_on_once)[2];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[2] = true;"
+      - lambda: "id(alarm_on)[2] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[2] = false;"
+    web_server:
+      sorting_weight: 22
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Wednesday alarm once"
+    lambda: "return id(alarm_on_once)[3];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[3] = true;"
+      - lambda: "id(alarm_on)[3] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[3] = false;"
+    web_server:
+      sorting_weight: 32
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Thursday alarm once"
+    lambda: "return id(alarm_on_once)[4];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[4] = true;"
+      - lambda: "id(alarm_on)[4] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[4] = false;"
+    web_server:
+      sorting_weight: 42
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Friday alarm once"
+    lambda: "return id(alarm_on_once)[5];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[5] = true;"
+      - lambda: "id(alarm_on)[5] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[5] = false;"
+    web_server:
+      sorting_weight: 52
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Saturday alarm once"
+    lambda: "return id(alarm_on_once)[6];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[6] = true;"
+      - lambda: "id(alarm_on)[6] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[6] = false;"
+    web_server:
+      sorting_weight: 62
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Sunday alarm once"
+    lambda: "return id(alarm_on_once)[0];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[0] = true;"
+      - lambda: "id(alarm_on)[0] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[0] = false;"
+    web_server:
+      sorting_weight: 72
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+sensor:
+  - platform: adc
+    id: source_sensor
+    pin: ${buttonpin}
+    name: button_volt
+    update_interval: 0.1s
+    attenuation: 12db
+    internal: ${hide_button_sensor}
+
+  - platform: bh1750
+    name: "Illuminance"
+    id: illuminance
+    address: 0x23
+    update_interval: 60sec
+    icon: mdi:brightness-5
+    device_class: illuminance
+    on_value:
+      then:
+        - lambda: |-
+            float temp_bright;
+
+            temp_bright = (15 / (id(max_brightness).state - id(min_brightness).state)) * (id(illuminance).state - id(min_brightness).state);
+
+            if (temp_bright < 0) {
+              temp_bright = 0;
+            }
+            if (temp_bright > 15) {
+              temp_bright = 15;
+            }
+            id(disp_brightness) = (int)temp_bright;
+    web_server:
+      sorting_group_id: alarm_environment
+          
+  - platform: homeassistant
+    entity_id: ${outdoor_temp_sensor}
+    id: outdoor_temperature
+    internal: True
+    name: "Outdoor temperature"
+
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    entity_category: diagnostic
+    id: wifi_rssi_raw
+    update_interval: 300s
+    icon: mdi:signal
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "Alarm countdown"
+    id: alarm_countdown
+    entity_category: diagnostic
+    device_class: duration
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    lambda: "return id(next_alarm);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "After last alarm"
+    id: alarm_countup
+    entity_category: diagnostic
+    device_class: duration
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    lambda: "return id(alarm_timeout);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+
+binary_sensor:
+  # Button down: Decrease alarm time when time is shown, silence alarm at alarm time set button left to true else
+  - platform: template
+    id: btn_down
+    internal: True
+    name: "Button Down"
+    lambda: |-
+      return (id(source_sensor).state > ${down_min} && id(source_sensor).state < ${down_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+              id(disp_line) = 1;
+            } else {
+              if (id(disp_line) > 1 && id (disp_line) < 9) {
+                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] - 5;
+                if (id(alarm_minute)[thisday] < 0) {
+                  id(alarm_minute)[thisday] = 55;
+                  id(alarm_hour)[thisday]--;
+                  if (id(alarm_hour)[thisday] < 0) {
+                    id(alarm_hour)[thisday] = 23;
+                  }
+                }
+              } else {
+                if (id(updown_onoff).state) {
+                  id(display_state).toggle();
+                } else {
+                  id(btn_left) = true;
+                }
+              }
+            }
+    on_release:
+      then:
+        - lambda: "id(btn_left) = false;"
+    filters:
+      - autorepeat:
+          - delay: 500ms
+            time_on: 250ms
+            time_off: 250ms
+          - delay: 5000ms
+            time_on: 100ms
+            time_off: 100ms
+
+  # Button up: Increase alarm time when time is shown, silence alarm at alarm time set button right to true else
+  - platform: template
+    id: btn_up
+    name: "Button Up"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state > ${up_min} && id(source_sensor).state <= ${up_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+              id(disp_line) = 1;
+            } else {
+              if (id(disp_line) > 1 && id (disp_line) < 9) {
+                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] + 5;
+                if (id(alarm_minute)[thisday] > 55) {
+                  id(alarm_minute)[thisday] = 0;
+                  id(alarm_hour)[thisday]++;
+                  if (id(alarm_hour)[thisday] > 23) {
+                    id(alarm_hour)[thisday] = 0;
+                  }
+                }
+              } else {
+                if (id(updown_onoff).state) {
+                  id(display_state).toggle();
+                } else {
+                  id(btn_right) = true;
+                }
+              }
+            }
+    on_release:
+      then:
+        - lambda: "id(btn_right) = false;"
+    filters:
+      - autorepeat:
+          - delay: 500ms
+            time_on: 250ms
+            time_off: 250ms
+          - delay: 5000ms
+            time_on: 100ms
+            time_off: 100ms
+            
+  # Button OnOff: Toggle the alarm and alarm_once on doubleclick, silence alarm at alarm time toggle display else.
+  - platform: template
+    id: btn_onoff
+    name: "Button OnOff"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state > ${onoff_min} && id(source_sensor).state <= ${onoff_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+              id(disp_line) = 1;
+            } else {
+              switch(id(disp_line)) {
+              case 0:
+                id(display_state).toggle();
+                break;
+              case 1:
+                id(display_state).toggle();
+                break;
+              case 9:
+                id(display_state).toggle();
+                break;
+              default:
+                if (id(alarm_on)[thisday]) {
+                  id(alarm_on)[thisday] = false;
+                  id(alarm_on_once)[thisday] = false;
+                } else {
+                  id(alarm_on)[thisday] = true;
+                }
+                break;
+              }
+            }
+            id(recalculate).press();
+    on_double_click:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+              id(disp_line) = 1;
+            } else {
+              switch(id(disp_line)) {
+              case 0:
+                id(display_state).toggle();
+                break;
+              case 1:
+                id(display_state).toggle();
+                break;
+              case 9:
+                id(display_state).toggle();
+                break;
+              default:
+                if (id(alarm_on)[thisday]) {
+                  id(alarm_on_once)[thisday] = false;
+                } else {
+                  id(alarm_on)[thisday] = true;
+                  id(alarm_on_once)[thisday] = true;
+                }
+                break;
+              }
+            }
+            id(recalculate).press();
+    
+  # Button Display: Walk through the lines, but no IP number, silence alarm at alarm time. Turn of display when off.
+  - platform: template
+    id: btn_display
+    name: "Button Display"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state >= ${display_min} && id(source_sensor).state < ${display_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            if (id(alarm_state).state || id(alert_now).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+              id(disp_line) = 1;
+            } else {
+              if (!id(display_state).state) {
+                id(display_state).turn_on();
+              } else {
+                id(disp_line)++;
+                if (id(disp_line) > 8) {
+                  id(disp_line) = 0;
+                }
+              }
+            }
+
+  # Expose left and right button actions to HA for followup in automations
+  # Binary sensor is only toggled when display does not show an alarm time.
+  - platform: template
+    name: "Left button"
+    lambda: "return id(btn_left);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "Right button"
+    lambda: "return id(btn_right);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  # Connection to HA. Used at alarm time
+  - platform: status
+    entity_category: diagnostic
+    id: system_status
+    name: "Status"
+    web_server:
+      sorting_group_id: alarm_diag
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      entity_category: diagnostic
+      name: IP Address
+      id: ip_address
+      icon: mdi:ip-network
+      address_0:
+        name: IP Address 0
+        web_server:
+          sorting_group_id: alarm_diag
+      address_1:
+        name: IP Address 1
+        web_server:
+          sorting_group_id: alarm_diag
+      address_2:
+        name: IP Address 2
+        web_server:
+          sorting_group_id: alarm_diag
+      web_server:
+        sorting_group_id: alarm_diag
+    mac_address:
+      entity_category: diagnostic
+      name: MAC Address
+      id: mac_address
+      icon: mdi:expansion-card
+      web_server:
+        sorting_group_id: alarm_diag
+
+# Configurations from web interface and HA.
+number:
+  - platform: template
+    name: "Display on before alarm"
+    id: on_before
+    optimistic: True
+    min_value: 0
+    max_value: 120
+    step: 1
+    initial_value: 0
+    mode: slider
+    restore_value: True
+    icon: mdi:clock-start
+    entity_category: config
+    device_class: duration
+    unit_of_measurement: m
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display off after alarm"
+    id: off_after
+    optimistic: True
+    min_value: 0
+    max_value: 120
+    step: 1
+    initial_value: 0
+    mode: slider
+    restore_value: True
+    icon: mdi:clock-end
+    entity_category: config
+    device_class: duration
+    unit_of_measurement: m
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Minimum brightness at"
+    id: min_brightness
+    optimistic: true
+    min_value: 0
+    max_value: 50
+    initial_value: 10
+    device_class: illuminance
+    mode: slider
+    restore_value: True
+    step: 1
+    icon: mdi:brightness-4
+    unit_of_measurement: lx
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Maximum brightness at"
+    id: max_brightness
+    optimistic: true
+    min_value: 10
+    max_value: 100
+    unit_of_measurement: lx
+    device_class: illuminance
+    initial_value: 40
+    mode: slider
+    restore_value: True
+    step: 10
+    icon: mdi:brightness-5
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display timeout in seconds"
+    min_value: 0
+    max_value: 300
+    step: 5
+    mode: slider
+    unit_of_measurement: s
+    device_class: duration
+    initial_value: 30
+    entity_category: config
+    id: disp_return
+    optimistic: True
+    icon: mdi:keyboard-return
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Alarm timeout in minutes"
+    min_value: 1
+    max_value: 90
+    step: 1
+    mode: slider
+    restore_value: True
+    initial_value: 20
+    unit_of_measurement: min
+    device_class: duration
+    entity_category: config
+    id: alarm_off
+    optimistic: True
+    icon: mdi:alarm-snooze
+    web_server:
+      sorting_group_id: alarm_config
+
+# Use the spleen font dor alarm time display als it allows for 6 characters
+# Use matrix font for time. Only 5 characters in display, full height of display is used.
+font:
+  - file: "spleen-5x8.bdf"
+    id: digit_font
+    size: 8
+  - file: "MatrixFont-6x8.bdf"
+    id: matrix_font
+
+display:
+  - platform: max7219digit
+    cs_pin: ${dispcspin}
+    num_chips: 4
+    rotate_chip: ${chip_orient}
+    reverse_enable: ${reverse_enable}
+    intensity: 15
+    lambda: |-
+      char alarm_day[]="${weekdays}";
+      auto time = id(esptime).now();
+      int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+
+      if (id(display_state).state) {
+        it.turn_on_off(true);
+        it.intensity(id(disp_brightness));
+        if (id(alarm_state).state || id(alert_now).state) {
+          it.invert_on_off(true);
+        } else {
+          it.invert_on_off(false);
+        }
+
+        switch(id(disp_line)) {
+        case 0:
+        #ifdef HAS_LED
+          it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
+        #else
+          if (id(next_alarm) < 2880) {
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+            it.line(31,0,31,0);
+          } else {
+            it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
+          }
+        #endif
+          break;
+        case 1:
+        #ifdef HAS_TVOC
+          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " <%.0f°c >%.0f°c voc %.0fppb", id(outdoor_temperature).state, id(temperature).state, id(tvoc).state);
+        #else
+          it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%.0f°C", id(outdoor_temperature).state);
+        #endif
+        #ifndef HAS_LED
+          if (id(next_alarm) < 2880) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          break;
+        case 9:
+          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(ip_address)[0].state.c_str());
+          break;
+        default:
+          it.printf(0,0, id(digit_font), TextAlign::TOP_LEFT, "%c%c", alarm_day[thisday * 2], alarm_day[(thisday * 2) + 1]);
+          it.printf(12,0, id(digit_font), TextAlign::TOP_LEFT, "%02d%02d", (int)id(alarm_hour)[thisday],(int)id(alarm_minute)[thisday]);
+        #ifndef HAS_LED
+          if (id(alarm_on)[thisday]) {
+            it.line(31,0,31,0);
+          }
+          if (id(alarm_on_once)[thisday]) {
+            it.line(31,2,31,2);
+          }
+        #endif
+          break;
+        }
+      } else {
+        it.turn_on_off(false);
+      }
+

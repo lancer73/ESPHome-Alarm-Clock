@@ -1,0 +1,110 @@
+esphome:
+  platformio_options:
+    build_flags:
+      - "-D HAS_LED"
+
+globals:
+  # State of the externally controlled led.
+  - id: led_state
+    type: bool
+    restore_value: false
+    initial_value: "false"
+
+output:
+  - platform: ledc
+    pin: ${redledpin}
+    id: gpio_red
+
+  - platform: ledc
+    pin: ${ambledpin}
+    id: gpio_amber
+
+  - platform: ledc
+    pin: ${bluledpin}
+    id: gpio_blue
+
+light:
+  - platform: monochromatic
+    output: gpio_red
+    name: "Red led"
+    id: red_led
+    internal: True
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0.25s
+
+  - platform: monochromatic
+    output: gpio_amber
+    name: "Amber led"
+    id: amber_led
+    internal: True
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0.25s
+
+  - platform: monochromatic
+    output: gpio_blue
+    name: "Blue led"
+    id: blue_led
+    internal: True
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 1s
+
+switch:
+  - platform: template
+    name: "Led"
+    id: led_switch
+    icon: mdi:led-off
+    optimistic: True
+    on_turn_on:
+      then:
+        - lambda: "id(led_state) = true;"
+    on_turn_off:
+      then:
+        - lambda: "id(led_state) = false;"
+    web_server:
+      sorting_group_id: alarm_control
+    restore_mode: RESTORE_DEFAULT_OFF
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          auto time = id(esptime).now();
+          int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+
+          if (id(display_state).state) {
+            if (id(led_state)) {
+              id(blue_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
+            } else {
+              id(blue_led).turn_off().perform();
+            }
+        
+            switch(id(disp_line)) {
+              case 0:
+              case 1:
+              case 9:
+                if (id(next_alarm) < 2880) {
+                  id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
+                } else {
+                  id(red_led).turn_off().perform();
+                }
+                break;
+              default:
+                if (id(alarm_on)[thisday]) {
+                  id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
+                } else {
+                  id(red_led).turn_off().perform();
+                }
+                if (id(alarm_on_once)[thisday]) {
+                  id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
+                } else {
+                  id(amber_led).turn_off().perform();
+                }
+                break;
+            }
+          } else {
+            id(red_led).turn_off().perform();
+            id(amber_led).turn_off().perform();
+            id(blue_led).turn_off().perform();
+          }
+
+

@@ -1,0 +1,78 @@
+esphome:
+  platformio_options:
+    build_flags:
+      - "-D HAS_TVOC"
+
+sensor:
+  - platform: bmp085
+    temperature:
+      name: "Temperature"
+      id: temperature
+      icon: mdi:thermometer
+      web_server:
+        sorting_group_id: alarm_environment
+    pressure:
+      name: "Pressure"
+      id: pressure
+      icon: mdi:gauge
+      web_server:
+        sorting_group_id: alarm_environment
+    update_interval: 120s
+
+  - platform: ccs811
+    eco2:
+      name: "eCO2 Value"
+      id: eco2
+      web_server:
+        sorting_group_id: alarm_environment
+    tvoc:
+      name: "Total Volatile Organic Compound"
+      id: tvoc
+      web_server:
+        sorting_group_id: alarm_environment
+    temperature: temperature
+    update_interval: 120s
+    baseline: ${baseline}
+
+
+# Configurations from web interface and HA.
+number:
+  - platform: template
+    name: "tvoc warning"
+    id: tvoc_warning
+    optimistic: true
+    min_value: 300
+    max_value: 1500
+    initial_value: 600
+    unit_of_measurement: ppb
+    device_class: volatile_organic_compounds_parts
+    mode: slider
+    restore_value: true
+    step: 50
+    icon: mdi:molecule
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+#ifdef HAS_TVOC
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (id(display_state).state) {
+
+            switch(id(disp_line)) {
+              case 0:
+              case 1:
+              case 9:
+                if (id(tvoc).state > id(tvoc_warning).state) {
+                  id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
+                } else {
+                  id(amber_led).turn_off().perform();
+                }
+                break;
+              default:
+                break;
+            }
+          }
+#endif
