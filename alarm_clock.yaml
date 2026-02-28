@@ -26,6 +26,10 @@
 #                        e.g. so HA can switch on remote speaker or Sonos
 #                        Note: The buzzer will sound always when there is no connection to HA.
 #   - Alert now          Sound a siren directly when turn on. e.g. for fire or burglar alarm    
+#   - Turn on at         Switch to turn on display at a set time
+#   - Turn off at        Switch to turn off display at a set time
+#   - Up/Down toggles display The up/down button toggles the display instead of toggling a binary sensor in HA
+#
 # - Number
 #   - Alarm timeout      Number of minutes afther which the alarm should stop
 #   - Display timeout    Number of seconds after which the display must return to tome display
@@ -33,6 +37,9 @@
 #   - Minimum brightness Number of lux below which the display must be at minimum brightness
 #                        Note: Amber and blue led brightness is connected to display brightness
 #   - TVOC warning       At which ppb value the orange led will be switched on
+#   - Turn display on before Turn display set minutes on before the set alarm (0 to disable)
+#   - Turn display off after Turn display off minutes after alarm went off (0 to disable)
+#
 # - Sensor
 #   - Sensors from CCS811 Air quality sensors tvoc and eco2
 #   - Sensors from BMP085 Pressure and temperature
@@ -50,11 +57,6 @@
 #   calibrate the CSS811 sensor. After a few hours the the baseline value from the logs and enter it below
 
 substitutions:
-  lux_max: "100"
-  lux_max_initial: "40"
-  lux_min: "0"
-  lux_min_initial: "10"
-  tvoc_warn: "600"
   # Set below subtitutions to 0 and false for upright and 180 andn true for upside down
   chip_orient: "0"
   reverse_enable: "false"
@@ -62,30 +64,54 @@ substitutions:
   melody: "mario:d=4,o=5,b=100:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g,8p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,16p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16c7,16p,16c7,16c7,p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16d#6,8p,16d6,8p,16c6"
   siren: "siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e"
   # Voltage values for the buttons
+  # To determine what the proper voltages are, set "hide_button_sensor" to false. This creates a voltage
+  # sensor with which you can detect the proper voltage for each button.
   hide_button_sensor: "True"
-  display_min: "2.56"
-  display_max: "3.0"
-  onoff_min: "2.0"
-  onoff_max: "2.55"
-  up_min: "1"
-  up_max: "1.6"
-  down_min: "1.61"
-  down_max: "2.0"
+  display_min: "0.95"
+  display_max: "1.30"
+  onoff_min: "1.40"
+  onoff_max: "2.00"
+  up_min: "0.73"
+  up_max: "0.90"
+  down_min: "0.50"
+  down_max: "0.73"
   # CSS811 Baseline
+  # Comment out on first run. After a few hours you can see the proper baseline in the ESP logs
+  # use that value here
   baseline: "0x21C6"
+  # Sensor in HA containing the outdoor temperature
+  outdoor_temp_sensor: "sensor.gw2000a_outdoor_temperature"
   # Weekdays: Update for your translation
   weekdays: "SuMoTuWeThFrSa"
-  # Name of the sensor in HA that carries the outdoor temperature
-  outdoor_sensor: "sensor.gw2000a_outdoor_temperature"
+  # LED GPIO pins 
+  redledpin: "GPIO25"
+  ambledpin: "GPIO26"
+  bluledpin: "GPIO27"
+  # Buzzer GPIO pin
+  buzzerpin: "GPIO32"
+  # I2C pins
+  i2csdapin: "GPIO21"
+  i2csclpin: "GPIO22"
+  # SPI pins
+  spiclkpin: "GPIO18"
+  spimospin: "GPIO23"
+  dispcspin: "5"
+  # Button ADC pin
+  buttonpin: "GPIO33"
+  # NTP server
+  # Set to an internet time source to make sure the alarm clock functions properly when HA is down
+  ntpserver: "nl.pool.ntp.org"
 
 esphome:
-  name: alarm_clock
-  friendly_name: Alarm Clock
+  name: alarm-clock
+  friendly_name: "Alarm Clock"
   min_version: 2024.6.0
   project: 
     name: "lancer73.alarm_clock"
     version: "1.0.0"
 
+# Adapt this to you specific controller
+# If you are not using an ESP32 DevkitC v4
 esp32:
   board: esp32dev
   cpu_frequency: 240MHz
@@ -97,13 +123,13 @@ esp32:
 # Enable Home Assistant API
 api:
   encryption:
-    key: !secret [API ENCRYPTION KEY]
+    key: !secret [YOURAPIENCRYPTIONKEY]
     
 ota:
   platform: esphome
-  password: !secret [OTA KEY]
+  password: !secret [YOUROTAPASSWORD]
 
-  # Enable logging
+# Enable logging
 logger:
     level: DEBUG
     logs: 
@@ -113,18 +139,21 @@ logger:
       datetime.time_entity: INFO
       switch: INFO
       text_sensor: INFO
+      binary_sensor: INFO
+      button: INFO
 
 wifi:
   networks:
-  - ssid: !secret [WIFI SSID]
-    password: !secret [WIFI PASSWORD]
+  - ssid: !secret wifi_ssid
+    password: !secret wifi_password
   reboot_timeout: 30min
   min_auth_mode: wpa2
+# Uncomment the lines below for a fallback hotspot
   ap:
     ssid: "Alarm Clock Hotspot"
-    password: !secret [HOTSPOT PASSWORD]
+    password: !secret [YOURAPIPASSWORD]
 
-# Enable IPv6. Not used by Home Assistant at the moment
+# Enable IPv6. 
 network:
   enable_ipv6: true
 
@@ -135,1175 +164,27 @@ captive_portal:
 # The webserver is for control purposes. No OTA and no LOG
 # Run fully local.
 web_server:
-  port: 80
   auth:
-    username: !secret [WEB SERVER ACCOUNT]
-    password: !secret [WEB SERVER PASSWORD]
-  version: 3
+    username: !secret [YOURWEBACCOUNT]
+    password: !secret [YOURWEBPASSWORD]
   ota: False
   log: False
-  local: True
-  sorting_groups:
-    - id: alarm_time
-      name: "Alarm times"
-      sorting_weight: 10
-    - id: alarm_control
-      name: "Control"
-      sorting_weight: 20
-    - id: alarm_environment
-      name: "Environment"
-      sorting_weight: 30
-    - id: alarm_config
-      name: "Alarm configuration"
-      sorting_weight: 40
-    - id: alarm_diag
-      name: "Diagnostics"
-      sorting_weight: 50
 
-globals:
-  # Which content to show
-  - id: disp_line
-    type: int
-    restore_value: false
-    initial_value: "9"
-  # To set the brightness of the MAX7219. Needs to be between 0 and 15
-  - id: disp_brightness
-    type: int
-    restore_value: False
-    initial_value: "0"
-  # Alarm times. One for every day of the week
-  # The hour the alarm needs to sound
-  - id: alarm_hour
-    type: int[7]
-    restore_value: True
-    initial_value: '{7,7,7,7,7,7,7}'
-  # The Minute the alarm needs to sound
-  - id: alarm_minute
-    type: int[7]
-    restore_value: True
-    initial_value: '{0,0,0,0,0,0,0}'
-  # Alarm enable/disable
-  - id: alarm_on
-    type: bool[7]
-    restore_value: True
-    initial_value: '{false,false,false,false,false,false,false}'
-  # If this is enabled the alarm will sound and then disable itself
-  - id: alarm_on_once
-    type: bool[7]
-    restore_value: True
-    initial_value: '{false,false,false,false,false,false,false}'
-  # If this counter reaches 0 the display switches back to line 0. Set in seconds
-  - id: disp_timeout
-    type: int
-    initial_value: "0"
-    restore_value: False
-  # Wether the left button (down) is pressed
-  - id: btn_left
-    type: bool
-    restore_value: False
-    initial_value: "false"
-  # Wether the right button (up) is pressed
-  - id: btn_right
-    type: bool
-    restore_value: false
-    initial_value: "false"
-  # Time in minutes the alarm is allowed to sound.
-  - id: alarm_timeout
-    type: int
-    initial_value: "1420"
-    restore_value: false
-  # State of the externally controlled led.
-  - id: led_state
-    type: bool
-    restore_value: false
-    initial_value: "false"
-  # Countdown timer in minutes for the next alarm
-  - id: next_alarm
-    type: int
-    initial_value: "2880"
-    restore_value: false
+# Comment out these sensors if you have connected the environmental sensors
+# Uncomment them if you do not have the environmental sensors
+#sensor:
+#  - platform: template
+#    id: temperature
+#    lambda: return 0.0;
+#    internal: True
+#  - platform: template
+#    id: tvoc
+#    lambda: return 0.0;
+#    internal: True
 
-i2c:
-  #ESP32
-  sda: GPIO21
-  scl: GPIO22
-  scan: False
-  frequency: 400kHz
-
-spi:
-  clk_pin: 18
-  mosi_pin: 23
-
-output:
-  - platform: ledc
-    pin: GPIO25
-    id: gpio_red
-
-  - platform: ledc
-    pin: GPIO26
-    id: gpio_amber
-
-  - platform: ledc
-    pin: GPIO27
-    id: gpio_blue
-
-  - platform: ledc
-    pin: GPIO32
-    id: buzzer_output
-
-rtttl:
-  output: buzzer_output
-  id: buzzer_pwm
-
-# Make the alarm times presentable in HA
-datetime:
-  - platform: template
-    type: time
-    name: "Monday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[1];
-      time.minute = id(alarm_minute)[1];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[1] = x.hour;
-            id(alarm_minute)[1] = x.minute;
-    web_server:
-      sorting_weight: 10
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Saturday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[6];
-      time.minute = id(alarm_minute)[6];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[6] = x.hour;
-            id(alarm_minute)[6] = x.minute;
-    web_server:
-      sorting_weight: 60
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Sunday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[0];
-      time.minute = id(alarm_minute)[0];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[0] = x.hour;
-            id(alarm_minute)[0] = x.minute;
-    web_server:
-      sorting_weight: 70
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Tuesday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[2];
-      time.minute = id(alarm_minute)[2];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[2] = x.hour;
-            id(alarm_minute)[2] = x.minute;
-    web_server:
-      sorting_weight: 20
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Wednesday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[3];
-      time.minute = id(alarm_minute)[3];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[3] = x.hour;
-            id(alarm_minute)[3] = x.minute;
-    web_server:
-      sorting_weight: 30
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Thursday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[4];
-      time.minute = id(alarm_minute)[4];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[4] = x.hour;
-            id(alarm_minute)[4] = x.minute;
-    web_server:
-      sorting_weight: 40
-      sorting_group_id: alarm_time
-    update_interval: 1s
-  - platform: template
-    type: time
-    name: "Friday alarm"
-    lambda: |-
-      ESPTime time;
-      time.hour = id(alarm_hour)[5];
-      time.minute = id(alarm_minute)[5];
-      time.second = 0;
-      return time;
-    set_action:
-      then:
-        - lambda: |-
-            id(alarm_hour)[5] = x.hour;
-            id(alarm_minute)[5] = x.minute;
-    web_server:
-      sorting_weight: 50
-      sorting_group_id: alarm_time
-    update_interval: 1s
-
-# Get the time from an NTP time source so the alarm will stay on time even when HA is down
-time:
-  - platform: sntp
-    id: esptime
-    timezone: Europe/Amsterdam
-    servers:
-     - nl.pool.ntp.org
-    on_time:
-      - seconds: 0
-        minutes: /1
-        then:
-          lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (time.day_of_week - 1);
-            int nowmin = (time.hour * 60) + time.minute;
-            int alarmtoday = (id(alarm_hour)[thisday] * 60) + id(alarm_minute)[thisday];
-            int alarmtomorrow = 1440 + (id(alarm_hour)[time.day_of_week % 7] * 60) + id(alarm_minute)[time.day_of_week % 7];
-
-            if ((alarmtoday - nowmin) >= 0 && id(alarm_on)[thisday]) {
-              id(next_alarm) = alarmtoday - nowmin;
-            } else if (id(alarm_on)[time.day_of_week % 7]) {
-              id(next_alarm) = alarmtomorrow - nowmin;
-            } else {
-              id(next_alarm) = 2880;
-            }
-
-            id(alarm_timeout)++;
-
-            if (id(alarm_timeout) == id(alarm_off).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-            }
-
-            if (id(next_alarm) == 0) {
-              id(alarm_state).turn_on();
-              if (id(alarm_on_once)[thisday]) {
-                id(alarm_on)[thisday] = false;
-                id(alarm_on_once)[thisday] = false;
-              }
-            }
-      - seconds: /1
-        then:
-          - lambda: |-
-              id(disp_timeout)++;
-              if (id(disp_timeout) > id(disp_return).state) {
-                id(disp_line) = 0;
-              }
-          - if:
-              condition:
-                and:
-                  - switch.is_on: alarm_state
-                  - or:
-                      - switch.is_on: alarm_buzzer
-                      - binary_sensor.is_off: system_status
-                  - not:
-                      rtttl.is_playing:
-              then:
-                - rtttl.play:
-                    rtttl: "${melody}"
-          - if:
-              condition:
-                and:
-                  - switch.is_on: alert_now
-                  - not:
-                      rtttl.is_playing:
-              then:
-                - rtttl.play:
-                    rtttl: "${siren}"
-
-light:
-  - platform: monochromatic
-    output: gpio_red
-    name: "Red led"
-    id: red_led
-    internal: True
-    restore_mode: ALWAYS_OFF
-    default_transition_length: 0.25s
-
-  - platform: monochromatic
-    output: gpio_amber
-    name: "Amber led"
-    id: amber_led
-    internal: True
-    restore_mode: ALWAYS_OFF
-    default_transition_length: 0.25s
-
-  - platform: monochromatic
-    output: gpio_blue
-    name: "Blue led"
-    id: blue_led
-    internal: True
-    restore_mode: ALWAYS_OFF
-    default_transition_length: 1s
-
-button:
-  - platform: restart
-    name: Restart
-    id: reboot
-    web_server:
-      sorting_group_id: alarm_control
-
-  - platform: template
-    name: Toggle all alarms off
-    id: toggle_all_off
-    icon: mdi:alarm-off
-    on_press:
-      - lambda: |-
-          for (int i = 0; i <= 6; i++) {
-            id(alarm_on)[i] = false;
-            id(alarm_on_once)[i] = false;
-          }
-    web_server:
-      sorting_weight: 5
-      sorting_group_id: alarm_time
-
-  - platform: template
-    name: Toggle weekday alarms on
-    id: toggle_all_on
-    icon: mdi:alarm-multiple
-    on_press:
-      - lambda: |-
-          for (int i = 1; i <= 5; i++) {
-            id(alarm_on)[i] = true;
-          }
-    web_server:
-      sorting_weight: 6
-      sorting_group_id: alarm_time
-          
-switch:
-  - platform: template
-    name: "Display Aan-Uit"
-    id: display_state
-    optimistic: True
-    restore_mode: RESTORE_DEFAULT_ON
-    icon: mdi:monitor
-    web_server:
-      sorting_group_id: alarm_control
-
-  - platform: template
-    name: "Alarm"
-    id: alarm_state
-    icon: mdi:bell-ring
-    optimistic: True
-    restore_mode: ALWAYS_OFF
-    on_turn_on:
-      then:
-        - switch.turn_on: display_state
-        - globals.set: 
-            id: alarm_timeout
-            value: '0'
-    on_turn_off:
-      then:
-        - rtttl.stop
-    web_server:
-      sorting_group_id: alarm_control
-
-  - platform: template
-    name: "Alert now"
-    id: alert_now
-    icon: mdi:bell-ring
-    optimistic: True
-    restore_mode: ALWAYS_OFF
-    on_turn_on:
-      then:
-        - switch.turn_on: display_state
-        - globals.set: 
-            id: alarm_timeout
-            value: '0'
-    on_turn_off:
-      then:
-        - rtttl.stop
-    web_server:
-      sorting_group_id: alarm_control
-
-  - platform: template
-    name: "Led"
-    id: led_switch
-    icon: mdi:led-off
-    optimistic: True
-    on_turn_on:
-      then:
-        - lambda: "id(led_state) = true;"
-    on_turn_off:
-      then:
-        - lambda: "id(led_state) = false;"
-    web_server:
-      sorting_group_id: alarm_control
-    restore_mode: RESTORE_DEFAULT_OFF
-
-  - platform: template
-    name: "Buzzer with alarm"
-    id: alarm_buzzer
-    optimistic: True
-    entity_category: config
-    icon: mdi:alarm-note
-    web_server:
-      sorting_group_id: alarm_config
-    restore_mode: RESTORE_DEFAULT_OFF
-
-    # Alarm switches. Keep at restore_mode: DISABLED. The global variable is stored to flash
-    # Setting the restore mode to something else will override the stored value of the global
-    # variable.
-  - platform: template
-    name: "Monday alarm"
-    lambda: "return id(alarm_on)[1];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[1] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[1] = false;"
-      - lambda: "id(alarm_on_once)[1] = false;"
-    web_server:
-      sorting_weight: 11
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Tuesday alarm"
-    lambda: "return id(alarm_on)[2];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[2] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[2] = false;"
-      - lambda: "id(alarm_on_once)[2] = false;"
-    web_server:
-      sorting_weight: 21
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Wednesday alarm"
-    lambda: "return id(alarm_on)[3];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[3] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[3] = false;"
-      - lambda: "id(alarm_on_once)[3] = false;"
-    web_server:
-      sorting_weight: 31
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Thursday alarm"
-    lambda: "return id(alarm_on)[4];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[4] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[4] = false;"
-      - lambda: "id(alarm_on_once)[4] = false;"
-    web_server:
-      sorting_weight: 41
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Friday alarm"
-    lambda: "return id(alarm_on)[5];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[5] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[5] = false;"
-      - lambda: "id(alarm_on_once)[5] = false;"
-    restore_mode: DISABLED
-    web_server:
-      sorting_weight: 51
-      sorting_group_id: alarm_time
-  - platform: template
-    name: "Saturday alarm"
-    lambda: "return id(alarm_on)[6];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[6] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[6] = false;"
-      - lambda: "id(alarm_on_once)[6] = false;"
-    web_server:
-      sorting_weight: 61
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Sunday alarm"
-    lambda: "return id(alarm_on)[0];"
-    icon: mdi:alarm
-    turn_on_action:
-      - lambda: "id(alarm_on)[0] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on)[0] = false;"
-      - lambda: "id(alarm_on_once)[0] = false;"
-    web_server:
-      sorting_weight: 71
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Monday alarm once"
-    lambda: "return id(alarm_on_once)[1];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on)[1] = true;"
-      - lambda: "id(alarm_on_once)[1] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[1] = false;"
-    web_server:
-      sorting_weight: 12
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Tuesday alarm once"
-    lambda: "return id(alarm_on_once)[2];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[2] = true;"
-      - lambda: "id(alarm_on)[2] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[2] = false;"
-    web_server:
-      sorting_weight: 22
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Wednesday alarm once"
-    lambda: "return id(alarm_on_once)[3];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[3] = true;"
-      - lambda: "id(alarm_on)[3] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[3] = false;"
-    web_server:
-      sorting_weight: 32
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Thursday alarm once"
-    lambda: "return id(alarm_on_once)[4];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[4] = true;"
-      - lambda: "id(alarm_on)[4] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[4] = false;"
-    web_server:
-      sorting_weight: 42
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Friday alarm once"
-    lambda: "return id(alarm_on_once)[5];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[5] = true;"
-      - lambda: "id(alarm_on)[5] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[5] = false;"
-    web_server:
-      sorting_weight: 52
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Saturday alarm once"
-    lambda: "return id(alarm_on_once)[6];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[6] = true;"
-      - lambda: "id(alarm_on)[6] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[6] = false;"
-    web_server:
-      sorting_weight: 62
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-  - platform: template
-    name: "Sunday alarm once"
-    lambda: "return id(alarm_on_once)[0];"
-    icon: mdi:repeat-off
-    turn_on_action:
-      - lambda: "id(alarm_on_once)[0] = true;"
-      - lambda: "id(alarm_on)[0] = true;"
-    turn_off_action:
-      - lambda: "id(alarm_on_once)[0] = false;"
-    web_server:
-      sorting_weight: 72
-      sorting_group_id: alarm_time
-    restore_mode: DISABLED
-
-
-sensor:
-  - platform: adc
-    id: source_sensor
-    pin: GPIO33
-    name: button_volt
-    update_interval: 0.1s
-    attenuation: 12db
-    internal: ${hide_button_sensor}
-
-  - platform: bh1750
-    name: "Illuminance"
-    id: illuminance
-    address: 0x23
-    update_interval: 60sec
-    icon: mdi:brightness-5
-    device_class: illuminance
-    on_value:
-      then:
-        - lambda: |-
-            float temp_bright;
-
-            temp_bright = (15 / (id(max_brightness).state - id(min_brightness).state)) * (id(illuminance).state - id(min_brightness).state);
-
-            if (temp_bright < 0) {
-              temp_bright = 0;
-            }
-            if (temp_bright > 15) {
-              temp_bright = 15;
-            }
-            id(disp_brightness) = (int)temp_bright;
-    web_server:
-      sorting_group_id: alarm_environment
-          
-  - platform: bmp085
-    temperature:
-      name: "Temperature"
-      id: temperature
-      icon: mdi:thermometer
-      web_server:
-        sorting_group_id: alarm_environment
-    pressure:
-      name: "Pressure"
-      id: pressure
-      icon: mdi:gauge
-      web_server:
-        sorting_group_id: alarm_environment
-    update_interval: 120s
-
-  - platform: ccs811
-    eco2:
-      name: "eCO2 Value"
-      id: eco2
-      web_server:
-        sorting_group_id: alarm_environment
-    tvoc:
-      name: "Total Volatile Organic Compound"
-      id: tvoc
-      web_server:
-        sorting_group_id: alarm_environment
-    temperature: temperature
-    update_interval: 120s
-    baseline: ${baseline}
-
-  - platform: homeassistant
-    entity_id: ${outdoor_sensor}
-    id: outdoor_temperature
-    internal: True
-    name: "Outdoor temperature"
-
-  - platform: wifi_signal
-    name: "WiFi Signal"
-    entity_category: diagnostic
-    id: wifi_rssi_raw
-    update_interval: 300s
-    icon: mdi:signal
-    web_server:
-      sorting_group_id: alarm_diag
-
-  - platform: template
-    name: "Alarm countdown"
-    id: alarm_countdown
-    entity_category: diagnostic
-    device_class: duration
-    unit_of_measurement: min
-    accuracy_decimals: 0
-    lambda: "return id(next_alarm);"
-    web_server:
-      sorting_group_id: alarm_diag
-    
-  - platform: template
-    name: "After last alarm"
-    id: alarm_countup
-    entity_category: diagnostic
-    device_class: duration
-    unit_of_measurement: min
-    accuracy_decimals: 0
-    lambda: "return id(alarm_timeout);"
-    web_server:
-      sorting_group_id: alarm_diag
-
-binary_sensor:
-  # Button down: Decrease alarm time when time is shown, silence alarm at alarm time set button left to true else
-  - platform: template
-    id: btn_down
-    internal: True
-    name: "Button Down"
-    lambda: |-
-      return (id(source_sensor).state > ${down_min} && id(source_sensor).state < ${down_max});
-    on_press:
-      then:
-        - globals.set:
-            id: disp_timeout
-            value: '0'
-        - lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              id(disp_line) = 1;
-            } else {
-              if (id(disp_line) > 1 && id (disp_line) < 9) {
-                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] - 5;
-                if (id(alarm_minute)[thisday] < 0) {
-                  id(alarm_minute)[thisday] = 55;
-                  id(alarm_hour)[thisday]--;
-                  if (id(alarm_hour)[thisday] < 0) {
-                    id(alarm_hour)[thisday] = 23;
-                  }
-                }
-              } else {
-                id(btn_left) = true;
-              }
-            }
-    on_release:
-      then:
-        - lambda: "id(btn_left) = false;"
-    filters:
-      - autorepeat:
-          - delay: 500ms
-            time_on: 250ms
-            time_off: 250ms
-          - delay: 5000ms
-            time_on: 100ms
-            time_off: 100ms
-
-  # Button up: Increase alarm time when time is shown, silence alarm at alarm time set button right to true else
-  - platform: template
-    id: btn_up
-    name: "Button Up"
-    internal: True
-    lambda: |-
-      return (id(source_sensor).state > ${up_min} && id(source_sensor).state <= ${up_max});
-    on_press:
-      then:
-        - globals.set:
-            id: disp_timeout
-            value: '0'
-        - lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              id(disp_line) = 1;
-            } else {
-              if (id(disp_line) > 1 && id (disp_line) < 9) {
-                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] + 5;
-                if (id(alarm_minute)[thisday] > 55) {
-                  id(alarm_minute)[thisday] = 0;
-                  id(alarm_hour)[thisday]++;
-                  if (id(alarm_hour)[thisday] > 23) {
-                    id(alarm_hour)[thisday] = 0;
-                  }
-                }
-              } else {
-                id(btn_right) = true;
-              }
-            }
-    on_release:
-      then:
-        - lambda: "id(btn_right) = false;"
-    filters:
-      - autorepeat:
-          - delay: 500ms
-            time_on: 250ms
-            time_off: 250ms
-          - delay: 5000ms
-            time_on: 100ms
-            time_off: 100ms
-            
-  # Button OnOff: Toggle the alarm and alarm_once on doubleclick, silence alarm at alarm time toggle display else.
-  - platform: template
-    id: btn_onoff
-    name: "Button OnOff"
-    internal: True
-    lambda: |-
-      return (id(source_sensor).state > ${onoff_min} && id(source_sensor).state <= ${onoff_max});
-    on_press:
-      then:
-        - globals.set:
-            id: disp_timeout
-            value: '0'
-        - lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              id(disp_line) = 1;
-            } else {
-              switch(id(disp_line)) {
-              case 0:
-                id(display_state).toggle();
-                break;
-              case 1:
-                id(display_state).toggle();
-                break;
-              case 9:
-                id(display_state).toggle();
-                break;
-              default:
-                if (id(alarm_on)[thisday]) {
-                  id(alarm_on)[thisday] = false;
-                  id(alarm_on_once)[thisday] = false;
-                } else {
-                  id(alarm_on)[thisday] = true;
-                }
-                break;
-              }
-            }
-    on_double_click:
-      then:
-        - globals.set:
-            id: disp_timeout
-            value: '0'
-        - lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              id(disp_line) = 1;
-            } else {
-              switch(id(disp_line)) {
-              case 0:
-                id(display_state).toggle();
-                break;
-              case 1:
-                id(display_state).toggle();
-                break;
-              case 9:
-                id(display_state).toggle();
-                break;
-              default:
-                if (id(alarm_on)[thisday]) {
-                  id(alarm_on_once)[thisday] = false;
-                } else {
-                  id(alarm_on)[thisday] = true;
-                  id(alarm_on_once)[thisday] = true;
-                }
-                break;
-              }
-            }
-    
-  # Button Display: Walk through the lines, but no IP number, silence alarm at alarm time. Turn of display when off.
-  - platform: template
-    id: btn_display
-    name: "Button Display"
-    internal: True
-    lambda: |-
-      return (id(source_sensor).state >= ${display_min} && id(source_sensor).state < ${display_max});
-    on_press:
-      then:
-        - globals.set:
-            id: disp_timeout
-            value: '0'
-        - lambda: |-
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              id(disp_line) = 1;
-            } else {
-              if (!id(display_state).state) {
-                id(display_state).turn_on();
-              } else {
-                id(disp_line)++;
-                if (id(disp_line) > 8) {
-                  id(disp_line) = 0;
-                }
-              }
-            }
-
-  # Expose left and right button actions to HA for followup in automations
-  # Binary sensor is only toggled when display does not show an alarm time.
-  - platform: template
-    name: "Left button"
-    lambda: "return id(btn_left);"
-    web_server:
-      sorting_group_id: alarm_diag
-
-  - platform: template
-    name: "Right button"
-    lambda: "return id(btn_right);"
-    web_server:
-      sorting_group_id: alarm_diag
-
-  # Connection to HA. Used at alarm time
-  - platform: status
-    entity_category: diagnostic
-    id: system_status
-    name: "Status"
-    web_server:
-      sorting_group_id: alarm_diag
-
-text_sensor:
-  - platform: wifi_info
-    ip_address:
-      entity_category: diagnostic
-      name: IP Address
-      id: ip_address
-      icon: mdi:ip-network
-      address_0:
-        name: IP Address 0
-        web_server:
-          sorting_group_id: alarm_diag
-      address_1:
-        name: IP Address 1
-        web_server:
-          sorting_group_id: alarm_diag
-      address_2:
-        name: IP Address 2
-        web_server:
-          sorting_group_id: alarm_diag
-      web_server:
-        sorting_group_id: alarm_diag
-    mac_address:
-      entity_category: diagnostic
-      name: MAC Address
-      id: mac_address
-      icon: mdi:expansion-card
-      web_server:
-        sorting_group_id: alarm_diag
-
-# Configurations from web interface and HA.
-number:
-  - platform: template
-    name: "tvoc warning"
-    id: tvoc_warning
-    optimistic: true
-    min_value: 300
-    max_value: 1500
-    initial_value: $tvoc_warn
-    unit_of_measurement: ppb
-    device_class: volatile_organic_compounds_parts
-    mode: slider
-    restore_value: true
-    step: 50
-    icon: mdi:molecule
-    entity_category: config
-    web_server:
-      sorting_group_id: alarm_config
-
-  - platform: template
-    name: "Minimum brightness at"
-    id: min_brightness
-    optimistic: true
-    min_value: $lux_min
-    max_value: $lux_max
-    initial_value: $lux_min_initial
-    device_class: illuminance
-    mode: slider
-    restore_value: True
-    step: 1
-    icon: mdi:brightness-4
-    unit_of_measurement: lx
-    entity_category: config
-    web_server:
-      sorting_group_id: alarm_config
-
-  - platform: template
-    name: "Maximum brightness at"
-    id: max_brightness
-    optimistic: true
-    min_value: $lux_min
-    max_value: $lux_max
-    unit_of_measurement: lx
-    device_class: illuminance
-    initial_value: $lux_max_initial
-    mode: slider
-    restore_value: True
-    step: 10
-    icon: mdi:brightness-5
-    entity_category: config
-    web_server:
-      sorting_group_id: alarm_config
-
-  - platform: template
-    name: "Display timeout in seconds"
-    min_value: 0
-    max_value: 300
-    step: 5
-    mode: slider
-    unit_of_measurement: s
-    device_class: duration
-    initial_value: 30
-    entity_category: config
-    id: disp_return
-    optimistic: True
-    icon: mdi:keyboard-return
-    web_server:
-      sorting_group_id: alarm_config
-
-  - platform: template
-    name: "Alarm timeout in minutes"
-    min_value: 1
-    max_value: 90
-    step: 1
-    mode: slider
-    restore_value: True
-    initial_value: 20
-    unit_of_measurement: min
-    device_class: duration
-    entity_category: config
-    id: alarm_off
-    optimistic: True
-    icon: mdi:alarm-snooze
-    web_server:
-      sorting_group_id: alarm_config
-
-# Use the spleen font dor alarm time display als it allows for 6 characters
-# Use matrix font for time. Only 5 characters in display, full height of display is used.
-font:
-  - file: "spleen-5x8.bdf"
-    id: digit_font
-    size: 8
-  - file: "MatrixFont-6x8.bdf"
-    id: matrix_font
-
-display:
-  - platform: max7219digit
-    cs_pin: 5
-    num_chips: 4
-    rotate_chip: ${chip_orient}
-    reverse_enable: ${reverse_enable}
-    intensity: 15
-    lambda: |-
-      char alarm_day[]="${weekdays}";
-      auto time = id(esptime).now();
-      int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-
-      if (id(next_alarm) < 2880) {
-        id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
-      } else {
-        id(red_led).turn_off().perform();
-      }
-
-      if (id(led_state)) {
-        id(blue_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-      } else {
-        id(blue_led).turn_off().perform();
-      }
-
-      if (id(display_state).state) {
-        it.turn_on_off(true);
-        it.intensity(id(disp_brightness));
-        if (id(alarm_state).state || id(alert_now).state) {
-          it.invert_on_off(true);
-        } else {
-          it.invert_on_off(false);
-        }
-
-        switch(id(disp_line)) {
-        case 0:
-          //To use a pixel in the corner of the display for the alarm status uncomment:
-          //if (id(next_alarm) < 2880) {
-          //  it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
-          //  it.line(31,0,31,0);
-          //} else {
-          //  it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
-          //} 
-          //And comment the it.printf line below
-          it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
-          if (id(tvoc).state > id(tvoc_warning).state) {
-            id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-          } else {
-            id(amber_led).turn_off().perform();
-          }
-          break;
-        case 1:
-          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " <%.0f°c >%.0f°c voc %.0fppb", id(outdoor_temperature).state, id(temperature).state, id(tvoc).state);
-          //Uncomment if you want a pixel in the corner of the display to indicate alarm status
-          //if (id(next_alarm) < 2880) {
-          //  it.line(31,0,31,0);
-          //}
-          if (id(tvoc).state > id(tvoc_warning).state) {
-            id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-          } else {
-            id(amber_led).turn_off().perform();
-          }
-          break;
-        case 9:
-          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(ip_address)[0].state.c_str());
-          if (id(tvoc).state > id(tvoc_warning).state) {
-            id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-          } else {
-            id(amber_led).turn_off().perform();
-          }
-          break;
-        default:
-          it.printf(0,0, id(digit_font), TextAlign::TOP_LEFT, "%c%c", alarm_day[thisday * 2], alarm_day[(thisday * 2) + 1]);
-          it.printf(12,0, id(digit_font), TextAlign::TOP_LEFT, "%02d%02d", (int)id(alarm_hour)[thisday],(int)id(alarm_minute)[thisday]);
-          if (id(alarm_on)[thisday]) {
-            id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-          } else {
-            id(red_led).turn_off().perform();
-          }
-          if (id(alarm_on_once)[thisday]) {
-            id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
-          } else {
-            id(amber_led).turn_off().perform();
-          }
-          //If you want a pixel in the corner of the display for alarm status, uncomment the lines below
-          //if (id(alarm_on)[thisday]) {
-          //  it.line(31,0,31,0);
-          //}
-          //if (id(alarm_on_once)[thisday]) {
-          //  it.line(31,2,31,2);
-          // }
-          break;
-        }
-      } else {
-        it.turn_on_off(false);
-        id(red_led).turn_off().perform();
-        id(amber_led).turn_off().perform();
-        id(blue_led).turn_off().perform();
-      }
+# Comment out the leds and/or the environment package when you don't
+# have the leds or the environmental sensors
+packages:
+  - !include alarmclock_includes/alarmclock_base.yaml
+  - !include alarmclock_includes/alarmclock_leds.yaml
+  - !include alarmclock_includes/alarmclock_environment.yaml
