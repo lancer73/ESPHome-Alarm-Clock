@@ -1159,7 +1159,7 @@ number:
 # Use the spleen font dor alarm time display als it allows for 6 characters
 # Use matrix font for time. Only 5 characters in display, full height of display is used.
 font:
-  - file: "spleen-5x8.bdf"
+  - file: "MatrixFont-5x8.bdf"
     id: digit_font
     size: 8
   - file: "MatrixFont-6x8.bdf"
@@ -1224,7 +1224,7 @@ display:
           break;
         default:
           it.printf(0,0, id(digit_font), TextAlign::TOP_LEFT, "%c%c", alarm_day[thisday * 2], alarm_day[(thisday * 2) + 1]);
-          it.printf(12,0, id(digit_font), TextAlign::TOP_LEFT, "%02d%02d", (int)id(alarm_hour)[thisday],(int)id(alarm_minute)[thisday]);
+          it.printf(11,0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(alarm_hour)[thisday],(int)id(alarm_minute)[thisday]);
         #ifndef HAS_LED
           if (id(alarm_on)[thisday]) {
             it.line(31,0,31,0);
