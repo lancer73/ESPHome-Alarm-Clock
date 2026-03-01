@@ -3,13 +3,6 @@ esphome:
     build_flags:
       - "-D HAS_LED"
 
-globals:
-  # State of the externally controlled led.
-  - id: led_state
-    type: bool
-    restore_value: false
-    initial_value: "false"
-
 output:
   - platform: ledc
     pin: ${redledpin}
@@ -48,22 +41,6 @@ light:
     restore_mode: ALWAYS_OFF
     default_transition_length: 1s
 
-switch:
-  - platform: template
-    name: "Led"
-    id: led_switch
-    icon: mdi:led-off
-    optimistic: True
-    on_turn_on:
-      then:
-        - lambda: "id(led_state) = true;"
-    on_turn_off:
-      then:
-        - lambda: "id(led_state) = false;"
-    web_server:
-      sorting_group_id: alarm_control
-    restore_mode: RESTORE_DEFAULT_OFF
-
 interval:
   - interval: 1s
     then:
@@ -72,7 +49,7 @@ interval:
           int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
 
           if (id(display_state).state) {
-            if (id(led_state)) {
+            if (id(message_state)) {
               id(blue_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
             } else {
               id(blue_led).turn_off().perform();
