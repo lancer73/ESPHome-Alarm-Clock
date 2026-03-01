@@ -85,20 +85,38 @@ The front display will slide into the housing. It is a tight fit, but fit it doe
 With everything in place you can create the config in ESPHome. Copy the contents of alarm_clock.yaml and adapt where needed. 
 
 Most relevant configurations:
-- chip_orient and reverse_enable, this allows you to rotate the display if you mount it upside down, or just want to put the alarm clock in an upside down position (attach it to a shelf)
-- hide_button_sensor, change this to true so you can read out the voltage with each button. With these values change the display_min/max (button with the square), onoff_min/max (button with the circle), up_min/max and down_min/max values. Take at least 0.1V of margin above and below the detected value. Make sure button voltage settings do not overlap.
-- baseline, this is the baseline setting for the CCS811 sensor. When first powering up make sure there is an empty string here. Put the alarm clock in a well ventilated position for a few hours and then look at the controller logs to find the baseline of the sensor and copy that value in.
-- outdoor_temp_sensor Put the entity_id of an outdoor temperature sensor here. The outdoor temperature will be show when the alarm is snoozed. This will help to pick the right outfir for today.
-- You can change weekdays to your local language. This sunstitution is just the first 2 letters of all days in the week, starting at Sunday.
+| Substitution | Purpose |
+|:-------------|:--------|
+| chip_orient and reverse_enable | this allows you to rotate the display if you mount it upside down, or just want to put the alarm clock in an upside down position (attach it to a shelf) |
+| hide_button_sensor | change this to false so you can read out the voltage with each button. With these values change the display_min/max (button with the square), onoff_min/max (button with the circle), up_min/max and down_min/max values. Take at least 0.1V of margin above and below the detected value. Make sure button voltage settings do not overlap. |
+| baseline | this is the baseline setting for the CCS811 sensor. When first powering up make sure there is an empty string here. Put the alarm clock in a well ventilated position for a few hours and then look at the controller logs to find the baseline of the sensor and copy that value in. |
+| outdoor_temp_sensor | Put the entity_id of an outdoor temperature sensor here. The outdoor temperature will be show when the alarm is snoozed. This will help to pick the right outfir for today.|
+| weekdays | You can change weekdays to your local language. This sunstitution is just the first 2 letters of all days in the week, starting at Sunday. |
+
+*Do nor forget to set all the passwords and encryption keys in the configuration. Search for text between [] for everything you need to replace.*
 <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/upsidedown.jpg" width="400px">
 
-
-
-
-
-
-
 ## Manual
+### Manual operation
+#### The buttons
+| Symbol | Name | Purpose |
+|:-------|:-----|:--------|
+| Square | Display | With the display button you can cycle through the pages. Pressing it once will lead to the environmental sensors, pressing it twice will lead to the alarm for the next day, pressing it again for the day after etc. Pressing it 8 times will lead back to the time display. The display will revert back to time automatically  (30s timeout by default). If the display is off, this button will turn on the display first |
+| Circle | On/Off | This button either toggles the display on or off when showing time or environment parameters or enable/disable the alarm time shown in the display. By double pressing it (slowly) you can set an alarm time once, meaning the alarm will be disabled for the next week automatically. The red led will show if an alarm is enabled and the amber led will show if it is enabled once. If you have no leds, the status will be shown using the right topmost pixel of the display (red) and the pixel below that (amber).
+| Up | Up | When the time or environment parameters are shown, the up button will be forwarded to Home Assistant to control room lights or whatever you choose. When showing an alarm time, it will increase the alarm time by 5 minutes. If you keep the button pressed the time will be counting up in steps of 5 minutes.
+| Down | Down | Same effect as the up button, but decreasing in time |
 
-MORE LATER!!
+#### The display
+When you first power up the alarm clock it will show its IP address so you can find the web interface. After the timeout period it will show the time. If an alarm is set within 24 hours the red led or right topmost pixel will light up.
+
+It is possible to turn on the blue led or the right bottemmost pixel from Home Assistant to indicate there is a message. What the message is, is up to you. Could be a signal to put the trash out today, that your favourite GP driver has won in the night race or anything else. I use it to indicate if the alarm clock of a family member has been set.
+
+The amber led will light up of the TVOC reading is above the warning threshold. If you have no leds, it will be the most right 3rd pixel from above.
+
+If the display shows an alarm time, the amber led will indicate if an alarm has been enabled once.
+
+#### When the alarm goes off
+When the alarm goes off, the display will invert. Either Home Assistant will arrange the audible alarm e.g. by turning on a remotely controlled speaker, or you can use the built in buzzer. If the connection to Home Assistant has been severed the buzzer will sound anyway. You can use any button to snooze the alarm. The alarm will turn off by itself after 90 minutes by default.
+
+### Operation from Home Assistant or Web
 
