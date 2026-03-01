@@ -1195,7 +1195,7 @@ display:
             it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
             if(id(next_alarm) < 2880) {
               it.line(31,0,31,0);
-            endif
+            }
             if (id(message_state)) {
               it.line(31,7,31,7);
             }
