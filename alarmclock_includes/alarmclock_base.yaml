@@ -1159,10 +1159,10 @@ number:
 # Use the spleen font dor alarm time display als it allows for 6 characters
 # Use matrix font for time. Only 5 characters in display, full height of display is used.
 font:
-  - file: "MatrixFont-5x8.bdf"
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/MatrixFont-5x8.bdf"
     id: digit_font
     size: 8
-  - file: "MatrixFont-6x8.bdf"
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/MatrixFont-6x8.bdf"
     id: matrix_font
 
 display:
