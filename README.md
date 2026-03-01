@@ -94,7 +94,8 @@ Most relevant configurations:
 | weekdays | You can change weekdays to your local language. This sunstitution is just the first 2 letters of all days in the week, starting at Sunday. |
 
 *Do nor forget to set all the passwords and encryption keys in the configuration. Search for text between [] for everything you need to replace.*
-<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/upsidedown.jpg" width="400px">
+| <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/upsidedown.jpg" width="400px"></figure> | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/set_alarm.jpg" width="400px"></figure> |
+|-----------|-----------|
 
 ## Manual
 ### Manual operation
@@ -123,6 +124,8 @@ Home Assistant and the web interface expose many more configurations and paramet
 #### Alarms
 There is an alarm time for every day of the week. The time is valid for that day only. There are two alarm switches for every day. The first will make the alarm go off on that day, the second, when enabled, will disable the alarm for that that after it has sounded. If you turn the once switch on, the alarm switch will be enables as well. If you switch off the alarm switch the once switch will be turned off as well.
 
+There are shortcut buttons to turn off all alarms at once (starting a holiday) or enabling all weekday alarms (at the end of a holody).
+
 #### Display on/off
 It is possible to switch the display on and off using the physical buttons. This behavior can be tuned further. The thinking behind this is that some people are distubed hy the alarm display at night, either from the brightness, or because the can see the time. If you can't sleep, seeing the time doesn't necessarity help.
 
@@ -135,10 +138,13 @@ The following configurations will also influence the display state:
 | Display on before alarm | Turns the display on set minutes before the alarm sounds. Useful if you typically wake up before the alarm time. If the display is still of you can close your eyes again, if it is on it might be best to disable the alarm and get up |
 
 #### Other sensors and settings
+| <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/light_set_alarm.jpg" width="400px"></figure> | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/light_temp.jpg" width="400px"></figure> |
+|----------|-----------|
+  
 | Sensor | Meaning |
 |:-------|:--------|
 | Illuminance | Illuminance measured by the sensor. May be used for automatic control of lights for instance. |
-| Left button | Binary sensor indicating the state of the down button |
+| Left button | Binary sensor indicating the state of the down button. This way the press of a button on the alarm clock can turn on the lights. |
 | Right button | Binary sensor indicating the state of the up button |
 | After last alarm | Number of minutes after the last alarm went off. For automations that need to be kicked off after the alarm time, such as pre-heating the car |
 | Alarm countdown | Number of minutes before the alarm. For automations that need to be kicked off before the alarm, such as turning on th ecoffee maker or setting the heating in the bathroom |
@@ -146,7 +152,20 @@ The following configurations will also influence the display state:
 | Switch | Meaning |
 |:-------|:--------|
 | Alarm | Will turn on when the alarm goes off. To be used in automation to turn on remote speakers or lights when the alarm goes off. Can also be switched on from home assistant. E.g. to synchronise alarms |
-| Alert now | 
+| Alert now | Will invert the diplay and sound a siren using the piezo buzzer. For connecting the alarm clock to a fire alarm, or just to get a teenager out of bed. Alarm can be turned off using a button on the clock. |
+| Message | Will turn on/off the message led as a remined for something, like putting the trash cans out or something else. |
+| Buzzer with alarm | When the switch is off, the buzzer will only sound if the connection with Home Assistant has been interrupted. Turn this off if you have an automation to pick up the state of the alarm switch. |
+| Up/Down toggles display | Turn this on if you don't want any automations connected to the up/down buttons. If this switch is on up/down toggles the display on/off when the display shows normal time. |
+
+| Numbers | Meaning |
+|:--------|:--------|
+| TVOC warning | Warning level when the TVOC warning led must be turned on. |
+| Alarm timeout in minutes | After this time has expired the alarm will be turned off automatically. |
+| Display timeout | Number of seconds after the last keypress after which the clock must return to normal time, or turn off again in the "off" window. |
+| Maximum brightness at | Number of lux at which the display and leds have maximum brightness |
+| Minimum brightness at| Number of lux at which the display has minimum brightness |
+
+
 
 
 
