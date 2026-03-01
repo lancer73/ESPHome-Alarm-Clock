@@ -185,7 +185,7 @@ web_server:
 
 # Comment out the leds and/or the environment path when you don't
 # have the leds or the environmental sensors
-ackages:
+packages:
   remote_package_files:
     url: https://github.com/lancer73/ESPHome-Alarm-Clock
     files:
