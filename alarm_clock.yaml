@@ -186,6 +186,11 @@ web_server:
 # Comment out the leds and/or the environment package when you don't
 # have the leds or the environmental sensors
 packages:
-  - !include alarmclock_includes/alarmclock_base.yaml
-  - !include alarmclock_includes/alarmclock_leds.yaml
-  - !include alarmclock_includes/alarmclock_environment.yaml
+  remote_package_files:
+    url: https://github.com/lancer73/ESPHome-Alarm-Clock
+    files:
+      - path: alarmclock_includes/alarmclock_base.yaml
+      - path: alarmclock_includes/alarmclock_leds.yaml
+      - path: alarmclock_includes/alarmclock_environment.yaml
+    ref: "main"
+    refresh: 1d
