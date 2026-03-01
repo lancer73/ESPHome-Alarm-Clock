@@ -26,7 +26,7 @@ With these parts you can build the "light" version.
 - KY-12 Piezo buzzer
 - BH1750 Illumination sensor
 - MAX7219 4x8x8 matrix display
-- ESP32 DevkitC v4 controller or another ESP controller with enough addressable pins, SPI and I2C bus
+- ESP32 DevkitC v4 controller or another ESP controller with enough addressable pins, SPI and I2C bus and an analog-digital converter.
 - A piece of electrical tape to cover the led on the controller board (unless you want a "shine in the dark" alarmclock.
 - USB cable with USB-A and USB-micro connector
 - USB charger
@@ -45,6 +45,58 @@ The other parts can be printed in any color or material. Be aware that if your p
 All parts contain recesses to house the various parts, except for the controller itself. I leave the controller "free floating" in the housing to not push to much stress on the cabling. 
 
 ## Assembly
+<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/Alarm%20Clock_schema.png"></figure>
+
+The picture above shows the wiring of the alarm clock. Most of it is straightforward. All sensors use the same I2C bus. The led connections are straightforward as well, Use a resistor in the 220 to 600 ohm range, depending on the maximum brightness that is needed from the led. The leds are controlled via the ledc component of ESPhome. The illumination sensor will be used to set the brightness of the leds dynamically.
+
+The buttons are connected in parallel. The resistance will determined by the button that has been pressed. This is measured by an ADC pin of the controller. With no buttons pressed the resistance is indefinite leading to a detected voltage of about 0V. Pressing the top button leads to a total resistant of 4k4 ohms, measured in between the resistors leading to about 1.6V. The lowest button has all 5 resistors in serial connection. The resistor on the red plus line is there to limit the voltage on the ADC pin.
+
+### Pins used
+| Pin | Purpose |
+|:-----|:---------|
+| 3v3 | Buttons, BH1750, CCS811, BMP180 |
+| 5v  | MAX7219 display, KY-12 buzzer |
+| GND | Everything leads to GND... |
+| GPIO5 | CS connection of MAX7219 |
+| GPIO18 | SPI CLK pin of MAX7219 |
+| GPIO21 | SDA pin of I2C bus leading to BH1750, CCS811, BMP180|
+| GPIO22 | SCL pin of I2C bus leading to BH1750, CCS811, BMP180|
+| GPIO23 | SPI MOSI pin for MAX7219 |
+| GPIO25 | Red led |
+| GPIO26 | Amber led |
+| GPIO27 | Blue led |
+| GPIO32 | Piezo buzzed, controlled through ledc component to enable tunes & music |
+| GPIO33 | Buttons |
+
+### Putting it together
+Personnally I like to do everything with Dupont connectors as most builds get taken apart eventually and the parts re-used. When the setup has been tested, the parts can be glued into place. Remeber to put the buttons in first before you solder them as they need to in through a hole. I used hot glue to put everything in place. 
+
+The light alarm clock body has a large hole in the back allowing the micro USB connector to pass (the normal version has a slot). After the cable is in, put the cover in place and hot-glue it in.
+
+<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/inside_light_display.jpg" align="left" width="400px"></figure>
+The picture on the left shows the MAX7219 display glued in place in the front panel (light version). Make sure the panel fits snugly and that is is completely flat. You will see in the front when it is not. The yellow heat shrink tubing covers the resistors. (this is actually the third one I built. Got tired of crimping on Dupont connectors).
+
+6 dots of hot glue keep everything in place.
+<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/inside_light.jpg" align="right" width="350px">
+Another picture showing the inside of the light version. BH1750 and KY12 are glued in place as is the inset in the connector entry hole in the back. Cut a piece of sheet plastic to size and put it in the recess first, before putting in the BH1750. I used some super glue to gluw the window into place first.
+
+The front display will slide into the housing. It is a tight fit, but fit it does. No glue needed to secure it. The same goes for the back panel of the normal version.
+
+With everything in place you can create the config in ESPHome. Copy the contents of alarm_clock.yaml and adapt where needed. 
+
+Most relevant configurations:
+- chip_orient and reverse_enable, this allows you to rotate the display if you mount it upside down, or just want to put the alarm clock in an upside down position (attach it to a shelf)
+- hide_button_sensor, change this to true so you can read out the voltage with each button. With these values change the display_min/max (button with the square), onoff_min/max (button with the circle), up_min/max and down_min/max values. Take at least 0.1V of margin above and below the detected value. Make sure button voltage settings do not overlap.
+- baseline, this is the baseline setting for the CCS811 sensor. When first powering up make sure there is an empty string here. Put the alarm clock in a well ventilated position for a few hours and then look at the controller logs to find the baseline of the sensor and copy that value in.
+- outdoor_temp_sensor Put the entity_id of an outdoor temperature sensor here. The outdoor temperature will be show when the alarm is snoozed. This will help to pick the right outfir for today.
+- You can change weekdays to your local language. This sunstitution is just the first 2 letters of all days in the week, starting at Sunday.
+<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/upsidedown.jpg" width="400px">
+
+
+
+
+
+
 
 ## Manual
 
