@@ -29,6 +29,7 @@
 #   - Turn on at         Switch to turn on display at a set time
 #   - Turn off at        Switch to turn off display at a set time
 #   - Up/Down toggles display The up/down button toggles the display instead of toggling a binary sensor in HA
+#   - Message            Turn on/off the message led/dot
 #
 # - Number
 #   - Alarm timeout      Number of minutes afther which the alarm should stop
