@@ -93,6 +93,10 @@ globals:
     type: bool
     initial_value: "false"
     restore_value: false
+  - id: message_state
+    type: bool
+    restore_value: false
+    initial_value: "false"
 
 i2c:
   #ESP32
@@ -709,6 +713,21 @@ switch:
       sorting_group_id: alarm_time
     restore_mode: DISABLED
 
+  - platform: template
+    name: "Message"
+    id: message_switch
+    icon: mdi:led-off
+    optimistic: True
+    on_turn_on:
+      then:
+        - lambda: "id(message_state) = true;"
+    on_turn_off:
+      then:
+        - lambda: "id(message_state) = false;"
+    web_server:
+      sorting_group_id: alarm_control
+    restore_mode: RESTORE_DEFAULT_OFF
+
 sensor:
   - platform: adc
     id: source_sensor
@@ -1172,9 +1191,14 @@ display:
         #ifdef HAS_LED
           it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
         #else
-          if (id(next_alarm) < 2880) {
+          if (id(next_alarm) < 2880 || id(message_state)) {
             it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
-            it.line(31,0,31,0);
+            if(id(next_alarm) < 2880) {
+              it.line(31,0,31,0);
+            endif
+            if (id(message_state)) {
+              it.line(31,7,31,7);
+            }
           } else {
             it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
           }
@@ -1185,11 +1209,14 @@ display:
           it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " <%.0f°c >%.0f°c voc %.0fppb", id(outdoor_temperature).state, id(temperature).state, id(tvoc).state);
         #else
           it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%.0f°C", id(outdoor_temperature).state);
-        #endif
-        #ifndef HAS_LED
+         #ifndef HAS_LED
           if (id(next_alarm) < 2880) {
             it.line(31,0,31,0);
           }
+          if (id(message_state)) {
+            it.line(31,7,31,7);
+          }
+         #endif
         #endif
           break;
         case 9:
