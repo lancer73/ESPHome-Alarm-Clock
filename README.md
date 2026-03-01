@@ -119,4 +119,35 @@ If the display shows an alarm time, the amber led will indicate if an alarm has 
 When the alarm goes off, the display will invert. Either Home Assistant will arrange the audible alarm e.g. by turning on a remotely controlled speaker, or you can use the built in buzzer. If the connection to Home Assistant has been severed the buzzer will sound anyway. You can use any button to snooze the alarm. The alarm will turn off by itself after 90 minutes by default.
 
 ### Operation from Home Assistant or Web
+Home Assistant and the web interface expose many more configurations and parameters. 
+#### Alarms
+There is an alarm time for every day of the week. The time is valid for that day only. There are two alarm switches for every day. The first will make the alarm go off on that day, the second, when enabled, will disable the alarm for that that after it has sounded. If you turn the once switch on, the alarm switch will be enables as well. If you switch off the alarm switch the once switch will be turned off as well.
+
+#### Display on/off
+It is possible to switch the display on and off using the physical buttons. This behavior can be tuned further. The thinking behind this is that some people are distubed hy the alarm display at night, either from the brightness, or because the can see the time. If you can't sleep, seeing the time doesn't necessarity help.
+
+You can set a time at which the display should be turned off and a time when it should be turned on again. This is combined with the "Automatic display on/off" switch, which must be enabled for the set times to have any effect. If the display is off and the time is in the "off" window, the display and in/off buttons will turn on the display and automatically turn it off again after the timeout period.
+
+The following configurations will also influence the display state:
+| Setting | Effect |
+|:--------|:-------|
+| Display off after alarm | Keeps the display on for a number of minutes after the alarm has been snoozed. (Only valid in the "off window") The display will turned off after set minutes to not disturb other occupants in the bed |
+| Display on before alarm | Turns the display on set minutes before the alarm sounds. Useful if you typically wake up before the alarm time. If the display is still of you can close your eyes again, if it is on it might be best to disable the alarm and get up |
+
+#### Other sensors and settings
+| Sensor | Meaning |
+|:-------|:--------|
+| Illuminance | Illuminance measured by the sensor. May be used for automatic control of lights for instance. |
+| Left button | Binary sensor indicating the state of the down button |
+| Right button | Binary sensor indicating the state of the up button |
+| After last alarm | Number of minutes after the last alarm went off. For automations that need to be kicked off after the alarm time, such as pre-heating the car |
+| Alarm countdown | Number of minutes before the alarm. For automations that need to be kicked off before the alarm, such as turning on th ecoffee maker or setting the heating in the bathroom |
+
+| Switch | Meaning |
+|:-------|:--------|
+| Alarm | Will turn on when the alarm goes off. To be used in automation to turn on remote speakers or lights when the alarm goes off. Can also be switched on from home assistant. E.g. to synchronise alarms |
+| Alert now | 
+
+
+
 
