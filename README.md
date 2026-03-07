@@ -102,9 +102,9 @@ Most relevant configurations:
 #### The buttons
 | Symbol | Name | Purpose |
 |:-------|:-----|:--------|
-| Square | Display | With the display button you can cycle through the pages. Pressing it once will lead to the environmental sensors, pressing it twice will lead to the alarm for the next day, pressing it again for the day after etc. Pressing it 8 times will lead back to the time display. The display will revert back to time automatically  (30s timeout by default). If the display is off, this button will turn on the display first |
-| Circle | On/Off | This button either toggles the display on or off when showing time or environment parameters or enable/disable the alarm time shown in the display. By double pressing it (slowly) you can set an alarm time once, meaning the alarm will be disabled for the next week automatically. The red led will show if an alarm is enabled and the amber led will show if it is enabled once. If you have no leds, the status will be shown using the right topmost pixel of the display (red) and the pixel below that (amber).
-| Up | Up | When the time or environment parameters are shown, the up button will be forwarded to Home Assistant to control room lights or whatever you choose. When showing an alarm time, it will increase the alarm time by 5 minutes. If you keep the button pressed the time will be counting up in steps of 5 minutes.
+| Square | Display | With the display button you can cycle through the pages. Pressing it once will lead to the environmental sensors, pressing it twice will lead to the alarm for the next day, pressing it again for the day after etc. Pressing it 8 times will lead back to the time display. The display will revert back to time automatically  (30s timeout by default). If the display is off, this button will turn on the display first. Keep this button pressed to access clock settings. |
+| Circle | On/Off | This button either toggles the display on or off when showing time or environment parameters or enable/disable the alarm time or settings shown in the display. By keeping it pressed you can set an alarm time once, meaning the alarm will be disabled for the next week automatically. The red led will show if an alarm is enabled and the amber led will show if it is enabled once. If you have no leds, the status will be shown using the right topmost pixel of the display (red) and the pixel below that (amber).
+| Up | Up | When the time or environment parameters are shown, the up button will be forwarded to Home Assistant to control room lights or whatever you choose. When showing an alarm time, it will increase the alarm time by 5 minutes. If you keep the button pressed the time will be counting up in steps of 5 minutes. Up and down are also used to in- or decrease settings.
 | Down | Down | Same effect as the up button, but decreasing in time |
 
 #### The display
@@ -118,6 +118,24 @@ If the display shows an alarm time, the amber led will indicate if an alarm has 
 
 #### When the alarm goes off
 When the alarm goes off, the display will invert. Either Home Assistant will arrange the audible alarm e.g. by turning on a remotely controlled speaker, or you can use the built in buzzer. If the connection to Home Assistant has been severed the buzzer will sound anyway. You can use any button to snooze the alarm. The alarm will turn off by itself after 90 minutes by default.
+
+#### Setting the time manually
+Normally the clock will take the time from the Internet. If the Internet is not available, or if you have disabled the wifi you can set the ime manually.
+
+Keep the display button pressed until the network address shows, or "Wifi" crossed out. Press the display button again. The display now shows "St" with the current time. In- or decrease the time with the up/down buttons. The top right pixel or the red led will show up as soon as you change the time, indicating the time has be changed, but not set. The the proper time shows in the display, press "On/Off" to set the time. The time will be set at the press of the button.
+
+Press the display button again to set the day of the week. Also here the top right pixel or red led will show up as a sign that the day has changed. Set the configured day by pressing the "On/Off" button. The pixel/led will go out if you do.
+
+#### Other settings
+If you press the "Display" button repeatedly you will cycle through the settings. The first setting is the wifi. If the Wifi is enabled and working, it will show an IP address. If the Wifi is off, it wil show "Wifi" crossed out. Toggle the Wifi with the on/off button.
+| Code | Setting | Explanation |
+|:-----|:--------|:------------|
+| On | Time to switch the display on | Time at which the display will be switched on automatically. Use the up and down buttons to change the time. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
+| Of | Time to switch the display off | Analogous to "On" |
+| Dt | Display timeout | Number of seconds before the display automatically returns to the time display. When the display is in the off period it will also switch off after this time. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
+| Db | Display on before alarm | Number of minutes the display will switch on before a set alarm. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
+| Da | Display off after alarm | Number of minutes the display will switch off after a set alarm in a period when the display should be off. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
+| At | Alarm timeout | Number of minutes after which the alarm should snooze automatically. The top right pixel or red led will show if the alarm buzzer is enabled. Use the "On/Off" button to toggle the buzzer setting. NOTE: If there is no connection to Home Assistant, the buzzer will always sound. |
 
 ### Operation from Home Assistant or Web
 Home Assistant and the web interface expose many more configurations and parameters. 
