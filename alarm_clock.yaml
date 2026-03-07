@@ -151,6 +151,7 @@ wifi:
     password: !secret wifi_password
   reboot_timeout: 0s
   enable_on_boot: false
+  id: clock_wifi
   min_auth_mode: wpa2
 # Uncomment the lines below for a fallback hotspot
   ap:
