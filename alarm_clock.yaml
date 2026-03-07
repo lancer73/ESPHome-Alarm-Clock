@@ -196,5 +196,5 @@ packages:
       - path: alarmclock_includes/alarmclock_base.yaml
       - path: alarmclock_includes/alarmclock_leds.yaml
       - path: alarmclock_includes/alarmclock_environment.yaml
-    ref: "main"
+    ref: "2026.4"
     refresh: 1d
