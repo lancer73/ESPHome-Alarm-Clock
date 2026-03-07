@@ -26,6 +26,7 @@ With these parts you can build the "light" version.
 - KY-12 Piezo buzzer
 - BH1750 Illumination sensor
 - MAX7219 4x8x8 matrix display
+- DS1307 real-time clock
 - ESP32 DevkitC v4 controller or another ESP controller with enough addressable pins, SPI and I2C bus and an analog-digital converter.
 - A piece of electrical tape to cover the led on the controller board (unless you want a "shine in the dark" alarmclock.
 - USB cable with USB-A and USB-micro connector
@@ -54,18 +55,18 @@ The buttons are connected in parallel. The resistance will determined by the but
 ### Pins used
 | Pin | Purpose |
 |:-----|:---------|
-| 3v3 | Buttons, BH1750, CCS811, BMP180 |
+| 3v3 | Buttons, BH1750, CCS811, BMP180, DS1307 |
 | 5v  | MAX7219 display, KY-12 buzzer |
 | GND | Everything leads to GND... |
 | GPIO5 | CS connection of MAX7219 |
 | GPIO18 | SPI CLK pin of MAX7219 |
-| GPIO21 | SDA pin of I2C bus leading to BH1750, CCS811, BMP180|
-| GPIO22 | SCL pin of I2C bus leading to BH1750, CCS811, BMP180|
+| GPIO21 | SDA pin of I2C bus leading to BH1750, CCS811, BMP180, DS1307 |
+| GPIO22 | SCL pin of I2C bus leading to BH1750, CCS811, BMP180, DS1307 |
 | GPIO23 | SPI MOSI pin for MAX7219 |
 | GPIO25 | Red led |
 | GPIO26 | Amber led |
 | GPIO27 | Blue led |
-| GPIO32 | Piezo buzzed, controlled through ledc component to enable tunes & music |
+| GPIO32 | Piezo buzzer, controlled through ledc component to enable tunes & music |
 | GPIO33 | Buttons |
 
 ### Putting it together
@@ -79,6 +80,8 @@ The picture on the left shows the MAX7219 display glued in place in the front pa
 6 dots of hot glue keep everything in place.
 <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/inside_light.jpg" align="right" width="350px">
 Another picture showing the inside of the light version. BH1750 and KY12 are glued in place as is the inset in the connector entry hole in the back. Cut a piece of sheet plastic to size and put it in the recess first, before putting in the BH1750. I used some super glue to gluw the window into place first.
+
+I use a piece of double-sided tape on the battery side to keep the DS1307 in place.
 
 The front display will slide into the housing. It is a tight fit, but fit it does. No glue needed to secure it. The same goes for the back panel of the normal version.
 
