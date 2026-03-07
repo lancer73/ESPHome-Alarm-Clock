@@ -8,6 +8,7 @@ Alarm clock built in ESPhome with the following features:
 - Sensors for automations before and after the alarm time
 - Alarm can be triggered from HA for normal and emergency situations
 - Switchable led from HA to convey a message
+- Can work without wifi/home assistant. Most important settings are accessible from the alarm clock itself.
 
 There are two different versions of the alarm clock. A full version with additional leds and environmental sensors and a light version. 3D print designs are included for both. The normal version has buttons at the top and sensors in the back, the light version has buttons on the front and a ligh sensor on the top.
 | <figure><img src="https://github.com/user-attachments/assets/9150e299-e841-41b1-9b82-796ef6b81ac7" align="left" width="400px"></figure> |<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/light.jpg" align="right" width="400px"></figure> |
