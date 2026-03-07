@@ -1281,6 +1281,9 @@ binary_sensor:
         - ON for at least 1.5s
       then:
         - globals.set:
+            id: disp_timeout
+            value: '0'
+        - globals.set:
             id: disp_line
             value: '100'
 
