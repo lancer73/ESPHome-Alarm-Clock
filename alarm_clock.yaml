@@ -192,6 +192,5 @@ packages:
       - path: alarmclock_includes/alarmclock_base.yaml
       - path: alarmclock_includes/alarmclock_leds.yaml
       - path: alarmclock_includes/alarmclock_environment.yaml
-      - path: alarmclock_includes/ds1307.yaml
     ref: "main"
     refresh: 1d
