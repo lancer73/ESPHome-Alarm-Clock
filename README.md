@@ -47,7 +47,7 @@ The other parts can be printed in any color or material. Be aware that if your p
 All parts contain recesses to house the various parts, except for the controller itself. I leave the controller "free floating" in the housing to not push to much stress on the cabling. 
 
 ## Assembly
-<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/Alarm%20Clock_schema.png"></figure>
+<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/a986aa7c83654a16a0b04270a1a01c16d27be048/Alarm%20Clock_schema.png"></figure>
 
 The picture above shows the wiring of the alarm clock. Most of it is straightforward. All sensors use the same I2C bus. The led connections are straightforward as well, Use a resistor in the 220 to 600 ohm range, depending on the maximum brightness that is needed from the led. The leds are controlled via the ledc component of ESPhome. The illumination sensor will be used to set the brightness of the leds dynamically.
 
