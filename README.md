@@ -128,14 +128,15 @@ Normally the clock will take the time from the Internet. If the Internet is not 
 
 Keep the display button pressed until the network address shows, or "Wifi" crossed out. Press the display button again. The display now shows "St" with the current time. In- or decrease the time with the up/down buttons. The top right pixel or the red led will show up as soon as you change the time, indicating the time has be changed, but not set. The the proper time shows in the display, press "On/Off" to set the time. The time will be set at the press of the button.
 
-Press the display button again to set the day of the week in the "Sd" display. Also here the top right pixel or red led will show up as a sign that the day has changed. Set the configured day by pressing the "On/Off" button. The pixel/led will go out if you do.
+Press the display button again to set the year in the "Sy" display. Also here the top right pixel or red led will show up as a sign that the day has changed. Set the configured day by pressing the "On/Off" button. The pixel/led will go out if you do. And the press display again for setting the dat in de "Sd" screen.
 
 #### Other settings
 If you press the "Display" button repeatedly you will cycle through the settings. The first setting is the wifi. If the Wifi is enabled and working, it will show an IP address. If the Wifi is off, it wil show "Wifi" crossed out. Toggle the Wifi with the on/off button.
 | Code | Setting | Explanation |
 |:-----|:--------|:------------|
 | St | Set time | Set the time and commit by pressing "on/off" |
-| Sd | Set day | Set the weekday and commit by pressing "on/off" |
+| Sy | Set year | Set the current year and commit by pressing "on/off" |
+| Sd | Set date | Set the day of the month and the month (ddmm) and commit by pressing "on/off" |
 | On | Time to switch the display on | Time at which the display will be switched on automatically. Use the up and down buttons to change the time. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
 | Of | Time to switch the display off | Analogous to "On" |
 | Dt | Display timeout | Number of seconds before the display automatically returns to the time display. When the display is in the off period it will also switch off after this time. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
