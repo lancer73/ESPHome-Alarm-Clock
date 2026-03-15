@@ -122,10 +122,25 @@ globals:
     type: int
     initial_value: "0"
     restore_value: no
-  # Register for setting the day of week
-  - id: current_weekday
+  # Register for setting the year
+  - id: current_year
     type: int
     initial_value: "0"
+    restore_value: no
+  # Register for setting the month
+  - id: current_month
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the day
+  - id: current_day
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the days per month. Feb-28 is not worth the trouble
+  - id: max_days
+    type: int[12]
+    initial_value: '{31,27,31,30,31,30,31,31,30,31,30,31}'
     restore_value: no
   # Register for detecting if the time setting has changed
   - id: time_changed
@@ -144,6 +159,10 @@ i2c:
   scl: ${i2csclpin}
   scan: False
   frequency: 400kHz
+
+i2c_device:
+  id: my_ds1307
+  address: 0x68
 
 spi:
   clk_pin: ${spiclkpin}
@@ -901,12 +920,22 @@ binary_sensor:
                 break;
               case 102:
                 id(time_changed) = true;
-                id(current_weekday)--;
-                if (id(current_weekday) < 1) {
-                  id(current_weekday) = 7;
+                id(current_year)--;
+                if (id(current_year) < 2026) {
+                  id(current_year) = 2200;
+                }
+              case 103:
+                id(time_changed) = true;
+                id(current_day)--;
+                if (id(current_day) < 1) {
+                  id(current_month)--;
+                  if (id(current_month) < 1) {
+                    id(current_month) = 12;
+                  }
+                  id(current_day) = id(max_days)[id(current_month) - 1];
                 }
                 break;
-              case 103:
+              case 104:
                 id(display_onoff_minute)[0] = id(display_onoff_minute)[0] - 5;
                 if (id(display_onoff_minute)[0] < 0) {
                   id(display_onoff_minute)[0] = 55;
@@ -916,7 +945,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 104:
+              case 105:
                 id(display_onoff_minute)[1] = id(display_onoff_minute)[1] - 5;
                 if (id(display_onoff_minute)[1] < 0) {
                   id(display_onoff_minute)[1] = 55;
@@ -926,19 +955,19 @@ binary_sensor:
                   }
                 }
                 break;
-              case 105:
+              case 106:
                 ret_call.number_decrement(true);
                 ret_call.perform();
                 break;
-              case 106:
+              case 107:
                 on_call.number_decrement(true);
                 on_call.perform();
                 break;
-              case 107:
+              case 108:
                 off_call.number_decrement(true);
                 off_call.perform();
                 break;
-              case 108:
+              case 109:
                 timeout_call.number_decrement(true);
                 timeout_call.perform();
                 break;
@@ -1018,12 +1047,22 @@ binary_sensor:
                 break;
               case 102:
                 id(time_changed) = true;
-                id(current_weekday)++;
-                if (id(current_weekday) > 7) {
-                  id(current_weekday) = 1;
+                id(current_year)++;
+                if (id(current_year) > 2200) {
+                  id(current_year) = 2026;
                 }
                 break;
               case 103:
+                id(time_changed) = true;
+                id(current_day)++;
+                if (id(current_day) > id(max_days)[id(current_month) - 1]) {
+                  id(current_month)++;
+                  if (id(current_month) > 12) {
+                    id(current_month) = 1;
+                  }
+                  id(current_day) = 1;
+                }
+              case 104:
                 id(display_onoff_minute)[0] = id(display_onoff_minute)[0] + 5;
                 if (id(display_onoff_minute)[0] > 55) {
                   id(display_onoff_minute)[0] = 0;
@@ -1033,7 +1072,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 104:
+              case 105:
                 id(display_onoff_minute)[1] = id(display_onoff_minute)[1] + 5;
                 if (id(display_onoff_minute)[1] > 55) {
                   id(display_onoff_minute)[1] = 0;
@@ -1043,19 +1082,19 @@ binary_sensor:
                   }
                 }
                 break;
-              case 105:
+              case 106:
                 ret_call.number_increment(true);
                 ret_call.perform();
                 break;
-              case 106:
+              case 107:
                 on_call.number_increment(true);
                 on_call.perform();
                 break;
-              case 107:
+              case 108:
                 off_call.number_increment(true);
                 off_call.perform();
                 break;
-              case 108:
+              case 109:
                 timeout_call.number_increment(true);
                 timeout_call.perform();
                 break;
@@ -1095,8 +1134,25 @@ binary_sensor:
             id: disp_timeout
             value: '0'
         - lambda: |-
-            auto time = id(esptime).now();
-            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            ESPTime now = id(esptime).now();
+            ESPTime utcnow = id(esptime).utcnow();
+            int thisday = (id(disp_line) + now.day_of_week - 2) % 7;
+
+            // Helper function to convert decimal to BCD
+            auto dec_to_bcd = [](uint8_t val) -> uint8_t {
+              return ((val / 10) << 4) | (val % 10);
+            };
+ 
+            // Convert to BCD                                                                                                                                                             
+            uint8_t bcd_seconds = dec_to_bcd(utcnow.second);                                                                                                                                          
+            uint8_t bcd_minutes = dec_to_bcd(utcnow.minute);                                                                                                                         
+            uint8_t bcd_hours = dec_to_bcd(utcnow.hour);                                                                                                               
+            uint8_t bcd_day_of_week = dec_to_bcd(utcnow.day_of_week);                                                                                                                     
+            uint8_t bcd_day_of_month = dec_to_bcd(utcnow.day_of_month);                                                                                                                   
+            uint8_t bcd_month = dec_to_bcd(utcnow.month);                                                                                                                                 
+            uint8_t bcd_year = dec_to_bcd(utcnow.year - 2000);                                                                                                                            
+            uint8_t start_addr = 0x00;
+
             if (id(alarm_state).state || id(alert_now).state) {
               id(alarm_state).turn_off();
               id(alert_now).turn_off();
@@ -1121,55 +1177,76 @@ binary_sensor:
                 break;
               case 101:
                 if (id(time_changed)) {
-                  ESPTime now = id(esptime).now();
-                  // Build a tm struct with our new hour/minute
-                  struct tm t = {};
-                  t.tm_sec  = 0;
-                  t.tm_min  = id(current_minute);
-                  t.tm_hour = id(current_hour);
-                  t.tm_mday = now.day_of_month;
-                  t.tm_mon  = now.month - 1;      // tm_mon is 0-based
-                  t.tm_year = now.year - 1900;    // tm_year is years since 1900
-                  t.tm_isdst = now.is_dst ? 1 : 0;
-    
-                  // Convert to epoch and set system time
-                  time_t epoch = mktime(&t);
-                  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                  settimeofday(&tv, nullptr);
-                  id(esptime).write_time();
+                  int time_offset = now.hour - utcnow.hour;
+
+                  // Convert to BCD
+                  uint8_t bcd_seconds = dec_to_bcd(0);
+                  uint8_t bcd_minutes = dec_to_bcd(id(current_minute));
+                  uint8_t bcd_hours = dec_to_bcd(id(current_hour) - time_offset);
+
+                  // Create a buffer with the time data
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};
+
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %2d:%2d", id(current_hour) - time_offset, id(current_minute));
+                  }
+                  id(esptime).read_time();
                   id(time_changed) = false;
                 }
                 break;
               case 102:
                 if (id(time_changed)) {
-                  ESPTime now = id(esptime).now();
-                  // Build a tm struct with our new hour/minute
-                  struct tm t = {};
-                  t.tm_sec  = now.second;
-                  t.tm_min  = now.minute;
-                  t.tm_hour = now.hour;
-                  t.tm_mday = id(current_weekday);
-                  t.tm_mon  = 1;      // tm_mon is 0-based
-                  t.tm_year = 126;    // tm_year is years since 1900
-                  t.tm_isdst = now.is_dst ? 1 : 0;
-    
-                  // Convert to epoch and set system time
-                  time_t epoch = mktime(&t);
-                  struct timeval tv = { .tv_sec = epoch, .tv_usec = 0 };
-                  settimeofday(&tv, nullptr);
-                  id(esptime).write_time();
+                  int time_offset = now.year - utcnow.year;
 
+                  // Convert to BCD
+                  uint8_t bcd_year = dec_to_bcd(id(current_year) - 2000 - time_offset);
+
+                  // Create a buffer with the time data
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};
+
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %d", id(current_year) - time_offset);
+                  }
+                  id(esptime).read_time();
                   id(time_changed) = false;
                 }
                 break;
               case 103:
+                if (id(time_changed)) {
+                  int time_offset_m = now.month - utcnow.month;                                                                                                                                          
+                  int time_offset_d = now.day_of_month - utcnow.day_of_month;
+
+                  // Convert to BCD                                                                                                                                                             
+                  uint8_t bcd_month = dec_to_bcd(id(current_month) - time_offset_m);                                                                                                         
+                  uint8_t bcd_day_of_month = dec_to_bcd(id(current_day) - time_offset_d);                                                                                                         
+                                                                                                                                            
+                  // Create a buffer with the time data                                                                                                                                         
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};                                                               
+ 
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %2d-%2d", id(current_month) - time_offset_m, id(current_day) - time_offset_d);
+                  }
+                  id(esptime).read_time();
+                  id(time_changed) = false;
+                }
+                break;
               case 104:
               case 105:
               case 106:
               case 107:
+              case 108:
                 id(display_onoff).toggle();
                 break;
-              case 108:
+              case 109:
                 id(alarm_buzzer).toggle();
                 break;
               default:
@@ -1207,16 +1284,17 @@ binary_sensor:
               case 100:
               case 101:
               case 102:
+              case 103:
                 id(display_state).toggle();
                 break;
-              case 103:
               case 104:
               case 105:
               case 106:
               case 107:
+              case 108:
                 id(display_onoff).toggle();
                 break;
-              case 108:
+              case 109:
                 id(alarm_buzzer).toggle();
                 break;
               default:
@@ -1260,7 +1338,7 @@ binary_sensor:
                     id(disp_line) = 0;
                   }
                 } else {
-                  if (id(disp_line) > 108) {
+                  if (id(disp_line) > 109) {
                     id(disp_line) = 0;
                   }
                   if (id(disp_line) == 101) {
@@ -1271,7 +1349,13 @@ binary_sensor:
                   }
                   if (id(disp_line) == 102) {
                     auto time = id(esptime).now();
-                    id(current_weekday) = time.day_of_week;
+                    id(current_year) = time.year;
+                    id(time_changed) = false;
+                  }
+                  if (id(disp_line) == 103) {
+                    auto time = id(esptime).now();
+                    id(current_month) = time.month;
+                    id(current_day) = time.day_of_month;
                     id(time_changed) = false;
                   }
                 }
@@ -1527,9 +1611,19 @@ display:
             it.line(31,0,31,0);
           } 
         #endif
-          it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sd %c%c", alarm_day[(id(current_weekday) - 1) * 2], alarm_day[((id(current_weekday) - 1) * 2) + 1]);
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sy");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%4d", (int)id(current_year));
           break;
         case 103:
+        #ifndef HAS_LED
+          if (id(time_changed)) {
+            it.line(31,0,31,0);
+          } 
+        #endif
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sd");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%2d", (int)id(current_day), (int)id(current_month));
+          break;
+        case 104:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1538,7 +1632,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "On");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[0], (int)id(display_onoff_minute)[0]);
           break;
-        case 104:
+        case 105:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1547,7 +1641,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Of");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[1], (int)id(display_onoff_minute)[1]);
           break;
-        case 105:
+        case 106:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1555,7 +1649,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Dt %2ds", (int)id(disp_return).state);
           break;
-        case 106:
+        case 107:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1563,7 +1657,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Db %2dm", (int)id(on_before).state);
           break;
-        case 107:
+        case 108:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1571,7 +1665,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Da %2dm", (int)id(off_after).state);
           break;
-        case 108:
+        case 109:
         #ifndef HAS_LED
           if (id(alarm_buzzer).state) {
             it.line(31,0,31,0);
