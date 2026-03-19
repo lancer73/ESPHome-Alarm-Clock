@@ -94,7 +94,6 @@ Most relevant configurations:
 | chip_orient and reverse_enable | this allows you to rotate the display if you mount it upside down, or just want to put the alarm clock in an upside down position (attach it to a shelf) |
 | hide_button_sensor | change this to false so you can read out the voltage with each button. With these values change the display_min/max (button with the square), onoff_min/max (button with the circle), up_min/max and down_min/max values. Take at least 0.1V of margin above and below the detected value. Make sure button voltage settings do not overlap. |
 | baseline | this is the baseline setting for the CCS811 sensor. When first powering up make sure there is an empty string here. Put the alarm clock in a well ventilated position for a few hours and then look at the controller logs to find the baseline of the sensor and copy that value in. |
-| outdoor_temp_sensor | Put the entity_id of an outdoor temperature sensor here. The outdoor temperature will be show when the alarm is snoozed. This will help to pick the right outfir for today.|
 | weekdays | You can change weekdays to your local language. This sunstitution is just the first 2 letters of all days in the week, starting at Sunday. |
 
 *Do nor forget to set all the passwords and encryption keys in the configuration. Search for text between [] for everything you need to replace.*
@@ -106,13 +105,13 @@ Most relevant configurations:
 #### The buttons
 | Symbol | Name | Purpose |
 |:-------|:-----|:--------|
-| Square | Display | With the display button you can cycle through the pages. Pressing it once will lead to the environmental sensors, pressing it twice will lead to the alarm for the next day, pressing it again for the day after etc. Pressing it 8 times will lead back to the time display. The display will revert back to time automatically  (30s timeout by default). If the display is off, this button will turn on the display first. Keep this button pressed to access clock settings. |
+| Square | Display | With the display button you can cycle through the pages. Pressing it once will lead to the message and environmental sensors, pressing it twice will lead to the alarm for the next day, pressing it again for the day after etc. If you have no environmental sensors and the message is empty (like after boot), the message is not displayed and the screen skips to the next. Pressing it 8 times will lead back to the time display. The display will revert back to time automatically  (30s timeout by default). If the display is off, this button will turn on the display first. Keep this button pressed to access clock settings. |
 | Circle | On/Off | This button either toggles the display on or off when showing time or environment parameters or enable/disable the alarm time or settings shown in the display. By keeping it pressed you can set an alarm time once, meaning the alarm will be disabled for the next week automatically. The red led will show if an alarm is enabled and the amber led will show if it is enabled once. If you have no leds, the status will be shown using the right topmost pixel of the display (red) and the pixel below that (amber).
 | Up | Up | When the time or environment parameters are shown, the up button will be forwarded to Home Assistant to control room lights or whatever you choose. When showing an alarm time, it will increase the alarm time by 5 minutes. If you keep the button pressed the time will be counting up in steps of 5 minutes. Up and down are also used to in- or decrease settings.
 | Down | Down | Same effect as the up button, but decreasing in time |
 
 #### The display
-When you first power up the alarm clock it will show its IP address so you can find the web interface. After the timeout period it will show the time. If an alarm is set within 24 hours the red led or right topmost pixel will light up.
+If an alarm is set within 24 hours the red led or right topmost pixel will light up.
 
 It is possible to turn on the blue led or the right bottemmost pixel from Home Assistant to indicate there is a message. What the message is, is up to you. Could be a signal to put the trash out today, that your favourite GP driver has won in the night race or anything else. I use it to indicate if the alarm clock of a family member has been set.
 
@@ -143,6 +142,7 @@ If you press the "Display" button repeatedly you will cycle through the settings
 | Db | Display on before alarm | Number of minutes the display will switch on before a set alarm. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
 | Da | Display off after alarm | Number of minutes the display will switch off after a set alarm in a period when the display should be off. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
 | At | Alarm timeout | Number of minutes after which the alarm should snooze automatically. The top right pixel or red led will show if the alarm buzzer is enabled. Use the "On/Off" button to toggle the buzzer setting. NOTE: If there is no connection to Home Assistant, the buzzer will always sound. |
+| *  | Melody | Use up/down to select the wanted melody. Press on/off to play the melody |
 
 ### Operation from Home Assistant or Web
 Home Assistant and the web interface expose many more configurations and parameters. 
@@ -188,7 +188,27 @@ The following configurations will also influence the display state:
 | Alarm timeout in minutes | After this time has expired the alarm will be turned off automatically. |
 | Display timeout | Number of seconds after the last keypress after which the clock must return to normal time, or turn off again in the "off" window. |
 | Maximum brightness at | Number of lux at which the display and leds have maximum brightness |
-| Minimum brightness at| Number of lux at which the display has minimum brightness |
+| Minimum brightness at | Number of lux at which the display has minimum brightness |
+| Melody | Select melody 0 to 8 to play a melody when the alarm sounds (and the buzzer is enabled |             
+
+#### Publishing a message
+You can send a message to the alarm clock. E.g. to display the outside temperature when the alarm clock goes of, or when the display button is pressed once. You can do this via an automation in Home Assistant. To send the outside temperature every 5 minutes the scipt looks something like this:
+```
+alias: Alarm Clock Message
+description: "Send regular updates to the alarm clock"
+triggers:
+  - trigger: time_pattern
+    minutes: /5
+conditions: []
+actions:
+  - action: esphome.[device_name]_publish_message
+    metadata: {}
+    data:
+      message: >-
+        {{ states("[your outdoor temp sensor]")|int(default=99)|round(0)
+        }}°C
+mode: single
+```
 
 
 
