@@ -61,8 +61,7 @@ substitutions:
   # Set below subtitutions to 0 and false for upright and 180 andn true for upside down
   chip_orient: "0"
   reverse_enable: "false"
-  # Buzzer tunes. Melody is played for waking up, siren is for Alert Now
-  melody: "mario:d=4,o=5,b=100:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g,8p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,16p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16c7,16p,16c7,16c7,p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16d#6,8p,16d6,8p,16c6"
+  # Buzzer tunes. Siren is for Alert Now
   siren: "siren:d=8,o=5,b=100:d,e,d,e,d,e,d,e"
   # Voltage values for the buttons
   # To determine what the proper voltages are, set "hide_button_sensor" to false. This creates a voltage
@@ -80,8 +79,6 @@ substitutions:
   # Comment out on first run. After a few hours you can see the proper baseline in the ESP logs
   # use that value here
   baseline: "0x21C6"
-  # Sensor in HA containing the outdoor temperature
-  outdoor_temp_sensor: "sensor.gw2000a_outdoor_temperature"
   # Weekdays: Update for your translation
   weekdays: "SuMoTuWeThFrSa"
   # LED GPIO pins 
@@ -110,7 +107,7 @@ esphome:
   min_version: 2024.6.0
   project: 
     name: "lancer73.alarm_clock"
-    version: "1.1.0"
+    version: "1.2.0"
 
 # Adapt this to you specific controller
 # If you are not using an ESP32 DevkitC v4
