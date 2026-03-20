@@ -23,7 +23,7 @@ light:
     id: red_led
     internal: True
     restore_mode: ALWAYS_OFF
-    default_transition_length: 0.25s
+    default_transition_length: 0.1s
 
   - platform: monochromatic
     output: gpio_amber
@@ -31,7 +31,7 @@ light:
     id: amber_led
     internal: True
     restore_mode: ALWAYS_OFF
-    default_transition_length: 0.25s
+    default_transition_length: 0.1s
 
   - platform: monochromatic
     output: gpio_blue
@@ -39,7 +39,7 @@ light:
     id: blue_led
     internal: True
     restore_mode: ALWAYS_OFF
-    default_transition_length: 1s
+    default_transition_length: 0.5s
 
 interval:
   - interval: 1s
@@ -69,29 +69,33 @@ interval:
                 break;
               case 101:
               case 102:
+              case 103:
                 if (id(time_changed)) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {
                   id(red_led).turn_off().perform();
                 }
                 break;
-              case 103:
               case 104:
               case 105:
               case 106:
               case 107:
+              case 108:
                 if (id(display_onoff).state) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {
                   id(red_led).turn_off().perform();
                 }
                 break;
-              case 108:
+              case 109:
                 if (id(alarm_buzzer).state) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {
                   id(red_led).turn_off().perform();
                 }
+                break;
+              case 110:
+                id(red_led).turn_off().perform();
                 break;
               default:
                 if (id(alarm_on)[thisday]) {
