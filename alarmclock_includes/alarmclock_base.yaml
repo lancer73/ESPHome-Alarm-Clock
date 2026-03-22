@@ -942,6 +942,7 @@ binary_sensor:
             auto off_call = id(off_after).make_call();
             auto timeout_call = id(alarm_off).make_call();   
             auto mymelody_call = id(mymelody).make_call();         
+            auto displayfont_call = id(displayfont).make_call();         
 
             int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
             if (id(alarm_state).state || id(alert_now).state) {
@@ -1029,10 +1030,14 @@ binary_sensor:
                 off_call.perform();
                 break;
               case 109:
+                displayfont_call.number_decrement(true);
+                displayfont_call.perform();
+                break;              
+              case 110:
                 timeout_call.number_decrement(true);
                 timeout_call.perform();
                 break;
-              case 110:
+              case 111:
                 id(buzzer_pwm).stop();
                 mymelody_call.number_decrement(true);
                 mymelody_call.perform();
@@ -1077,6 +1082,7 @@ binary_sensor:
             auto off_call = id(off_after).make_call();
             auto timeout_call = id(alarm_off).make_call();
             auto mymelody_call = id(mymelody).make_call();
+            auto displayfont_call = id(displayfont).make_call();
 
             int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
             if (id(alarm_state).state || id(alert_now).state) {
@@ -1164,10 +1170,14 @@ binary_sensor:
                 off_call.perform();
                 break;
               case 109:
+                displayfont_call.number_increment(true);
+                displayfont_call.perform();
+                break;
+              case 110:
                 timeout_call.number_increment(true);
                 timeout_call.perform();
                 break;
-              case 110:
+              case 111:
                 id(buzzer_pwm).stop();
                 mymelody_call.number_increment(true);
                 mymelody_call.perform();
@@ -1324,12 +1334,13 @@ binary_sensor:
               case 106:
               case 107:
               case 108:
+              case 109:
                 id(display_onoff).toggle();
                 break;
-              case 109:
+              case 110:
                 id(alarm_buzzer).toggle();
                 break;
-              case 110:
+              case 111:
                 if (id(buzzer_pwm).is_playing()) {
                   id(buzzer_pwm).stop();
                 } else {
@@ -1381,12 +1392,13 @@ binary_sensor:
               case 106:
               case 107:
               case 108:
+              case 109:
                 id(display_onoff).toggle();
                 break;
-              case 109:
+              case 110:
                 id(alarm_buzzer).toggle();
                 break;
-              case 110:
+              case 111:
                 if (id(playmymelody)) {
                   id(playmymelody) = false;
                 } else {
@@ -1441,7 +1453,7 @@ binary_sensor:
                     id(disp_line) = 0;
                   }
                 } else {
-                  if (id(disp_line) > 110) {
+                  if (id(disp_line) > 111) {
                     id(disp_line) = 0;
                   }
                   if (id(disp_line) == 101) {
@@ -1649,6 +1661,21 @@ number:
     icon: mdi:music-note
     web_server:
       sorting_group_id: alarm_config
+  
+  - platform: template
+    name: "Display font"
+    min_value: 0
+    max_value: 2
+    step: 1
+    mode: slider
+    restore_value: True
+    initial_value: 0
+    entity_category: config
+    id: displayfont
+    optimistic: True
+    icon: mdi:format-font
+    web_server:
+      sorting_group_id: alarm_config
 
     
 # Use the spleen font dor alarm time display als it allows for 6 characters
@@ -1659,6 +1686,10 @@ font:
     size: 8
   - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/MatrixFont-6x8.bdf"
     id: matrix_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Segment-6x8.bdf"
+    id: segment_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Aurebesh-6x8.bdf"
+    id: aurebesh_font
 
 display:
   - platform: max7219digit
@@ -1687,7 +1718,17 @@ display:
           it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
         #else
           if (id(next_alarm) < 2880 || id(message_state)) {
-            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+            switch((int)id(displayfont).state) {
+            case 1:
+              it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            case 2:
+              it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            default:
+              it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            }
             if(id(next_alarm) < 2880) {
               it.line(31,0,31,0);
             }
@@ -1701,9 +1742,29 @@ display:
           break;
         case 1:
         #ifdef HAS_TVOC
-          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          }
         #else
-          it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          }
         #endif
           break;
         case 100:
@@ -1784,6 +1845,19 @@ display:
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Da %2dm", (int)id(off_after).state);
           break;
         case 109:
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Segment,");
+            break;          
+          case 2:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Aurebesh,");
+            break;
+          default:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Normal,");
+            break;
+          }
+          break;
+        case 110:
         #ifndef HAS_LED
           if (id(alarm_buzzer).state) {
             it.line(31,0,31,0);
@@ -1791,7 +1865,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "At %2dm", (int)id(alarm_off).state);
           break;
-        case 110:
+        case 111:
           switch((int)id(mymelody).state) {
           case 0:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Star Wars,");

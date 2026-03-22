@@ -81,20 +81,21 @@ interval:
               case 106:
               case 107:
               case 108:
+              case 109:
                 if (id(display_onoff).state) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {
                   id(red_led).turn_off().perform();
                 }
                 break;
-              case 109:
+              case 110:
                 if (id(alarm_buzzer).state) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {
                   id(red_led).turn_off().perform();
                 }
                 break;
-              case 110:
+              case 111:
                 id(red_led).turn_off().perform();
                 break;
               default:
