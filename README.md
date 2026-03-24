@@ -214,7 +214,12 @@ actions:
 mode: single
 ```
 
-
+#### Font showcase
+| Font | Image|
+|:-----|-----:|
+| Segment | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/745a447ef462d0d99a14e7984487b851e464f824/images/segment.jpg" width="400px"></figure> |
+| Aurebesh | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/745a447ef462d0d99a14e7984487b851e464f824/images/aurebesh.jpg" width="400px"></figure> |
+| Aurebesh numbers | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/745a447ef462d0d99a14e7984487b851e464f824/images/aurebeshnumbers.jpg" width="400px"></figure> |
 
 
 
