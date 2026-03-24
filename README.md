@@ -141,9 +141,10 @@ If you press the "Display" button repeatedly you will cycle through the settings
 | Dt | Display timeout | Number of seconds before the display automatically returns to the time display. When the display is in the off period it will also switch off after this time. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
 | Db | Display on before alarm | Number of minutes the display will switch on before a set alarm. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
 | Da | Display off after alarm | Number of minutes the display will switch off after a set alarm in a period when the display should be off. The top right pixel or red led will show of the automatic display on/off has been enabled. Use the "On/Off" button to toggle the automatic display setting |
-| Df | Display font | Font for the main (time & message) display. Available are the normal font, a font that mimics a segment display and Star Wars' Aurebesh |
+| Df | Display font | Font for the main (time & message) display. Available are the normal font, a font that mimics a segment display and Star Wars' Aurebesh (2 variants) |
 | At | Alarm timeout | Number of minutes after which the alarm should snooze automatically. The top right pixel or red led will show if the alarm buzzer is enabled. Use the "On/Off" button to toggle the buzzer setting. NOTE: If there is no connection to Home Assistant, the buzzer will always sound. |
 | *  | Melody | Use up/down to select the wanted melody. Press on/off to play the melody. Melody choices are: Star Wars (Emprire strikes back), Mission Impossible, Mario Kart, Addams Family, Airwolf, James Bond, Swiebertje, Friends and Wake Me Up |
+| Ab | Alarm buzzer | Select a random tune for the next alarm of use a single tune always. The top right pixel or red led will show if the alarm buzzer is enabled. Use the "On/Off" button to toggle the buzzer setting. NOTE: If there is no connection to Home Assistant, the buzzer will always sound. |
 
 ### Operation from Home Assistant or Web
 Home Assistant and the web interface expose many more configurations and parameters. 
@@ -181,6 +182,7 @@ The following configurations will also influence the display state:
 | Alert now | Will invert the diplay and sound a siren using the piezo buzzer. For connecting the alarm clock to a fire alarm, or just to get a teenager out of bed. Alarm can be turned off using a button on the clock. |
 | Message | Will turn on/off the message led as a remined for something, like putting the trash cans out or something else. |
 | Buzzer with alarm | When the switch is off, the buzzer will only sound if the connection with Home Assistant has been interrupted. Turn this off if you have an automation to pick up the state of the alarm switch. |
+| Buzzer random | Will eelect a random value for the next buzzer. This will actually change the Melody selector |
 | Up/Down toggles display | Turn this on if you don't want any automations connected to the up/down buttons. If this switch is on up/down toggles the display on/off when the display shows normal time. |
 
 | Numbers | Meaning |
@@ -190,7 +192,7 @@ The following configurations will also influence the display state:
 | Display timeout | Number of seconds after the last keypress after which the clock must return to normal time, or turn off again in the "off" window. |
 | Maximum brightness at | Number of lux at which the display and leds have maximum brightness |
 | Minimum brightness at | Number of lux at which the display has minimum brightness |
-| Display font | Font of the time and message display. 0 is the normal font, 1 mimics a segment display and 2 is Aurebesh (Star Wars) |
+| Display font | Font of the time and message display. 0 is the normal font, 1 mimics a segment display, 2 is Aurebesh (Star Wars) and 3 is also Aurebesh, but with the numbers used for currency |
 | Melody | Select melody 0 to 8 to play a melody when the alarm sounds (and the buzzer is enabled). Melody choices are: 0 - Star Wars (Emprire strikes back), 1 - Mission Impossible, 2 - Mario Kart, 3 - Addam Family, 4 - Airwolf, 5 - James Bond, 6 - Swiebertje, 7 - Friends and 8 - Wake Me Up  |             
 
 #### Publishing a message
