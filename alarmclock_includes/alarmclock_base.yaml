@@ -601,6 +601,13 @@ switch:
     on_turn_off:
       then:
         - rtttl.stop
+        - lambda: |-
+            auto mymelody_call = id(mymelody).make_call();
+            int newmelody = rand() % 9;
+            if (id(random_buzzer).state) {
+              mymelody_call.set_value(newmelody);
+              mymelody_call.perform();
+            }
     web_server:
       sorting_group_id: alarm_control
 
@@ -846,6 +853,16 @@ switch:
       sorting_group_id: alarm_control
     restore_mode: RESTORE_DEFAULT_OFF
 
+  - platform: template
+    name: "Buzzer random"
+    id: random_buzzer
+    icon: mdi:music-box-multiple
+    optimistic: true
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+    restore_mode: RESTORE_DEFAULT_OFF
+
 sensor:
   - platform: adc
     id: source_sensor
@@ -1042,6 +1059,8 @@ binary_sensor:
                 mymelody_call.number_decrement(true);
                 mymelody_call.perform();
                 break;
+              case 112:
+                id(random_buzzer).toggle();
               default:
                 if (id(updown_onoff).state) {
                   id(display_state).toggle();
@@ -1182,6 +1201,8 @@ binary_sensor:
                 mymelody_call.number_increment(true);
                 mymelody_call.perform();
                 break;
+              case 112:
+                id(random_buzzer).toggle();
               default:
                 if (id(updown_onoff).state) {
                   id(display_state).toggle();
@@ -1338,6 +1359,7 @@ binary_sensor:
                 id(display_onoff).toggle();
                 break;
               case 110:
+              case 112:
                 id(alarm_buzzer).toggle();
                 break;
               case 111:
@@ -1396,6 +1418,7 @@ binary_sensor:
                 id(display_onoff).toggle();
                 break;
               case 110:
+              case 112:
                 id(alarm_buzzer).toggle();
                 break;
               case 111:
@@ -1453,7 +1476,7 @@ binary_sensor:
                     id(disp_line) = 0;
                   }
                 } else {
-                  if (id(disp_line) > 111) {
+                  if (id(disp_line) > 112) {
                     id(disp_line) = 0;
                   }
                   if (id(disp_line) == 101) {
@@ -1665,7 +1688,7 @@ number:
   - platform: template
     name: "Display font"
     min_value: 0
-    max_value: 2
+    max_value: 3
     step: 1
     mode: slider
     restore_value: True
@@ -1689,6 +1712,8 @@ font:
   - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Segment-6x8.bdf"
     id: segment_font
   - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Aurebesh-6x8.bdf"
+    id: aurebeshnumber_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Aurebesh_2-6x8.bdf"                                                                                               
     id: aurebesh_font
 
 display:
@@ -1725,6 +1750,9 @@ display:
             case 2:
               it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
               break;
+            case 3:
+              it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);                                                                                     
+              break;
             default:
               it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
               break;
@@ -1749,6 +1777,9 @@ display:
           case 2:
             it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
             break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s >%.0f..c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);                        
+            break;
           default:
             it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
             break;
@@ -1760,6 +1791,9 @@ display:
             break;
           case 2:
             it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());                                                                                    
             break;
           default:
             it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
@@ -1852,6 +1886,9 @@ display:
           case 2:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Aurebesh,");
             break;
+          case 3:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Aurebesh Numbers,");                                                                                                               
+            break;
           default:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Normal,");
             break;
@@ -1894,6 +1931,20 @@ display:
           default:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Wake Me Up,");
             break;
+          }
+          break;
+        case 112:
+        #ifndef HAS_LED                                                                                                                                                                        
+          if (id(alarm_buzzer).state) {                                                                                                                                                        
+            it.line(31,0,31,0);                                                                                                                                                                
+          }                                                                                                                                                                                    
+        #endif 
+          if (id(random_buzzer).state) {
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Ab");
+            it.print(11, 0, id(digit_font), TextAlign::TOP_LEFT, "rand");
+          } else {
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Ab");
+            it.print(11, 0, id(digit_font), TextAlign::TOP_LEFT, "same");
           }
           break;
         default:
