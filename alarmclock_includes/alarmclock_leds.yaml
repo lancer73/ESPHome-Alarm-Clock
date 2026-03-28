@@ -58,6 +58,8 @@ interval:
             switch(id(disp_line)) {
               case 0:
               case 1:
+              case 98:
+              case 99:
                 if (id(next_alarm) < 2880) {
                   id(red_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();        
                 } else {

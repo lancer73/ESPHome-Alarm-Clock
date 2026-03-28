@@ -24,6 +24,13 @@ api:
       - text_sensor.template.publish:
           id: message_line
           state: !lambda 'return message;'
+  - service: banner_message
+    variables:
+      message: string
+    then:
+      - text_sensor.template.publish:
+          id: show_message
+          state: !lambda 'return message;'
           
 # Enable the webserver and create groups for the dashboard
 # The webserver is for control purposes. No OTA and no LOG
@@ -415,10 +422,10 @@ time:
         then:
           - lambda: |-
               id(disp_timeout)++;
-              if (id(disp_timeout) > id(disp_return).state) {
+              if (id(disp_timeout) > id(disp_return).state && (id(disp_line) < 98 || id(disp_line) > 99)) {
                 id(disp_line) = 0;
                 // Also turn display off when in the off-period, but not in the set pre and post alarm period
-                if (id(offperiod) && id(off_after).state < id(alarm_timeout) && id(on_before).state < id(next_alarm) && id(display_onoff).state && !id(alarm_state).state && !id(alert_now).state) {
+                if (id(offperiod) && id(off_after).state < id(alarm_timeout) && id(on_before).state < id(next_alarm) && id(display_onoff).state && !id(alarm_state).state) {
                   id(display_state).turn_off();
                 } 
               }
@@ -542,7 +549,26 @@ button:
             } else {
               id(next_alarm) = 2880;
             }
-
+            
+  - platform: template
+    name: Snooze
+    id: snooze
+    internal: True
+    on_press:
+      then:
+        - lambda: |-
+            id(alert_now).turn_off();
+            id (id(disp_line) == 98 && id(alarm_state).state) {
+              id(alarm_state).turn_off();
+            } else {
+              id(alarm_state).turn_off();
+              if (id(message_line).state != "") {
+                id(disp_line) = 1;
+              } else {
+                id(disp_line) = 0;
+              }
+            }
+            
 switch:
   - platform: template
     name: "Up⁄Down toggles display"
@@ -623,9 +649,15 @@ switch:
         - globals.set: 
             id: alarm_timeout
             value: '0'
+        - globals.set:
+            id: disp_line
+            value: '99'
     on_turn_off:
       then:
         - rtttl.stop
+        - globals.set:
+            id: disp_line
+            value: '0'
     web_server:
       sorting_group_id: alarm_control
 
@@ -962,12 +994,8 @@ binary_sensor:
             auto displayfont_call = id(displayfont).make_call();         
 
             int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              if (id(message_line).state != "") {
-                id(disp_line) = 1;
-              }
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
             } else {
               switch(id(disp_line)) {
               case 2:
@@ -1104,12 +1132,8 @@ binary_sensor:
             auto displayfont_call = id(displayfont).make_call();
 
             int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              if (id(message_line).state != "") {
-                id(disp_line) = 1;
-              }
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
             } else {
               switch(id(disp_line)) {
               case 2:
@@ -1258,12 +1282,8 @@ binary_sensor:
             uint8_t bcd_year = dec_to_bcd(utcnow.year - 2000);                                                                                                                            
             uint8_t start_addr = 0x00;
 
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              if (id(message_line).state != "") {
-                id(disp_line) = 1;
-              }
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
             } else {
               if (id(buzzer_pwm).is_playing()) {
                 id(buzzer_pwm).stop();
@@ -1389,12 +1409,8 @@ binary_sensor:
         - lambda: |-
             auto time = id(esptime).now();
             int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              if (id(message_line).state != "") {
-                id(disp_line) = 1;
-              }
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
             } else {
               switch(id(disp_line)) {
               case 0:
@@ -1455,12 +1471,8 @@ binary_sensor:
             id: disp_timeout
             value: '0'
         - lambda: |-
-            if (id(alarm_state).state || id(alert_now).state) {
-              id(alarm_state).turn_off();
-              id(alert_now).turn_off();
-              if (id(message_line).state != "") {
-                id(disp_line) = 1;
-              }
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
             } else {
               if (!id(display_state).state) {
                 id(display_state).turn_on();
@@ -1564,6 +1576,22 @@ text_sensor:
     id: message_line
     name: "Message line"
     icon: mdi:message
+    web_server:
+      sorting_group_id: alarm_diag
+      
+  - platform: template
+    id: show_message
+    name: "Time interrupting Message"
+    icon: mdi:message
+    on_value:
+      then:
+        - if:
+            condition: 
+              lambda: 'return x != "";'
+            then:
+              - globals.set:
+                  id: disp_line
+                  value: '98'
     web_server:
       sorting_group_id: alarm_diag
 
@@ -1800,6 +1828,26 @@ display:
             break;
           }
         #endif
+          break;
+        case 98:
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());                                                                                    
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          }  
+          break;      
+        case 99:
+          // Always in clear font
+          it.print(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "ALARM");
           break;
         case 100:
           if (id(wifi_enabled)) {
