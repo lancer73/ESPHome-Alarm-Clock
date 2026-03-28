@@ -1,0 +1,2015 @@
+# Enable the wifi if such is configured
+esphome:
+  on_boot:
+    - priority: 250
+      then: 
+        - if:
+            condition:
+              lambda: 'return id(clock_wifi);'
+            then:
+              wifi.enable:
+    - priority: 800
+      then:
+        - ds1307.read_time:
+        - text_sensor.template.publish:
+            id: message_line
+            state: ""
+
+api:
+  services:
+  - service: publish_message
+    variables:
+      message: string
+    then:
+      - text_sensor.template.publish:
+          id: message_line
+          state: !lambda 'return message;'
+  - service: banner_message
+    variables:
+      message: string
+    then:
+      - text_sensor.template.publish:
+          id: show_message
+          state: !lambda 'return message;'
+          
+# Enable the webserver and create groups for the dashboard
+# The webserver is for control purposes. No OTA and no LOG
+# Run fully local.
+web_server:
+  port: 80
+  version: 3
+  local: True
+  sorting_groups:
+    - id: alarm_time
+      name: "Alarm times"
+      sorting_weight: 10
+    - id: alarm_control
+      name: "Control"
+      sorting_weight: 20
+    - id: alarm_environment
+      name: "Environment"
+      sorting_weight: 30
+    - id: alarm_config
+      name: "Alarm configuration"
+      sorting_weight: 40
+    - id: alarm_diag
+      name: "Diagnostics"
+      sorting_weight: 50
+
+globals:
+  # Which content to show
+  - id: disp_line
+    type: int
+    restore_value: no
+    initial_value: "0"
+  # To set the brightness of the MAX7219. Needs to be between 0 and 15
+  - id: disp_brightness
+    type: int
+    restore_value: no
+    initial_value: "0"
+  # Automatic turning on and off of the display
+  - id: display_onoff_hour
+    type: int[2]
+    restore_value: yes
+    initial_value: '{7,23}'
+  - id: display_onoff_minute
+    type: int[2]
+    restore_value: yes
+    initial_value: '{0,0}'
+  # Alarm times. One for every day of the week
+  # The hour the alarm needs to sound
+  - id: alarm_hour
+    type: int[7]
+    restore_value: yes
+    initial_value: '{7,7,7,7,7,7,7}'
+  # The Minute the alarm needs to sound
+  - id: alarm_minute
+    type: int[7]
+    restore_value: yes 
+    initial_value: '{0,0,0,0,0,0,0}'
+  # Alarm enable/disable
+  - id: alarm_on
+    type: bool[7]
+    restore_value: yes
+    initial_value: '{false,false,false,false,false,false,false}'
+  # If this is enabled the alarm will sound and then disable itself
+  - id: alarm_on_once
+    type: bool[7]
+    restore_value: yes
+    initial_value: '{false,false,false,false,false,false,false}'
+  # If this counter reaches 0 the display switches back to line 0. Set in seconds
+  - id: disp_timeout
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Wether the left button (down) is pressed
+  - id: btn_left
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # Wether the right button (up) is pressed
+  - id: btn_right
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # Time in minutes the alarm is allowed to sound.
+  - id: alarm_timeout
+    type: int
+    initial_value: "1420"
+    restore_value: no
+  # Countdown timer in minutes for the next alarm
+  - id: next_alarm
+    type: int
+    initial_value: "2880"
+    restore_value: no
+  # We are in the time of that that the display should be off
+  - id: offperiod
+    type: bool
+    initial_value: "false"
+    restore_value: no
+  # State of the message indicator (blue led or right bottom pixel
+  - id: message_state
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # Register needed for setting the hour
+  - id: current_hour
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the minute
+  - id: current_minute
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the year
+  - id: current_year
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the month
+  - id: current_month
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the day
+  - id: current_day
+    type: int
+    initial_value: "0"
+    restore_value: no
+  # Register for setting the days per month. Feb-28 is not worth the trouble
+  - id: max_days
+    type: int[12]
+    initial_value: '{31,27,31,30,31,30,31,31,30,31,30,31}'
+    restore_value: no
+  # Register for detecting if the time setting has changed
+  - id: time_changed
+    type: bool
+    initial_value: "false"
+    restore_value: no
+  # If wifi must be enabled
+  - id: wifi_enabled
+    type: bool
+    initial_value: "true"
+    restore_value: yes
+  - id: playmymelody
+    type: bool
+    initial_value: "false"
+    restore_value: no
+
+i2c:
+  #ESP32
+  sda: ${i2csdapin}
+  scl: ${i2csclpin}
+  scan: False
+  frequency: 400kHz
+
+i2c_device:
+  id: my_ds1307
+  address: 0x68
+
+spi:
+  clk_pin: ${spiclkpin}
+  mosi_pin: ${spimospin}
+
+output:
+  - platform: ledc
+    pin: ${buzzerpin}
+    id: buzzer_output
+
+rtttl:
+  output: buzzer_output
+  id: buzzer_pwm
+
+# Make the alarm times presentable in HA
+datetime:
+  - platform: template
+    type: time
+    name: "Display on at"
+    entity_category: config
+    lambda: |-
+      ESPTime time;
+      time.hour = id(display_onoff_hour)[0];
+      time.minute = id(display_onoff_minute)[0];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(display_onoff_hour)[0] = x.hour;
+            id(display_onoff_minute)[0] = x.minute;
+    web_server:
+      sorting_weight: 10
+      sorting_group_id: alarm_config
+
+  - platform: template
+    type: time
+    name: "Display off at"
+    entity_category: config
+    lambda: |-
+      ESPTime time;
+      time.hour = id(display_onoff_hour)[1];
+      time.minute = id(display_onoff_minute)[1];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(display_onoff_hour)[1] = x.hour;
+            id(display_onoff_minute)[1] = x.minute;
+    web_server:
+      sorting_weight: 11
+      sorting_group_id: alarm_config
+
+  - platform: template
+    type: time
+    name: "Monday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[1];
+      time.minute = id(alarm_minute)[1];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[1] = x.hour;
+            id(alarm_minute)[1] = x.minute;
+    web_server:
+      sorting_weight: 10
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Saturday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[6];
+      time.minute = id(alarm_minute)[6];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[6] = x.hour;
+            id(alarm_minute)[6] = x.minute;
+    web_server:
+      sorting_weight: 60
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Sunday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[0];
+      time.minute = id(alarm_minute)[0];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[0] = x.hour;
+            id(alarm_minute)[0] = x.minute;
+    web_server:
+      sorting_weight: 70
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Tuesday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[2];
+      time.minute = id(alarm_minute)[2];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[2] = x.hour;
+            id(alarm_minute)[2] = x.minute;
+    web_server:
+      sorting_weight: 20
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Wednesday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[3];
+      time.minute = id(alarm_minute)[3];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[3] = x.hour;
+            id(alarm_minute)[3] = x.minute;
+    web_server:
+      sorting_weight: 30
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Thursday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[4];
+      time.minute = id(alarm_minute)[4];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[4] = x.hour;
+            id(alarm_minute)[4] = x.minute;
+    web_server:
+      sorting_weight: 40
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+  - platform: template
+    type: time
+    name: "Friday alarm"
+    lambda: |-
+      ESPTime time;
+      time.hour = id(alarm_hour)[5];
+      time.minute = id(alarm_minute)[5];
+      time.second = 0;
+      return time;
+    set_action:
+      then:
+        - lambda: |-
+            id(alarm_hour)[5] = x.hour;
+            id(alarm_minute)[5] = x.minute;
+    web_server:
+      sorting_weight: 50
+      sorting_group_id: alarm_time
+    update_interval: 1s
+
+# Get the time from an NTP time source so the alarm will stay on time even when HA is down
+time:
+  - platform: sntp
+    timezone: ${timezone}
+    servers:
+      - ${ntpserver}
+    id: ntp_time
+    on_time_sync:
+      then:
+        ds1307.write_time:
+
+  - platform: ds1307
+    id: esptime
+    on_time:
+      - seconds: 0
+        minutes: /1
+        then:
+          lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (time.day_of_week - 1);
+            int nowmin = (time.hour * 60) + time.minute;
+            int onat = (id(display_onoff_hour)[0] * 60) + id(display_onoff_minute)[0];
+            int offat = (id(display_onoff_hour)[1] * 60) + id(display_onoff_minute)[1];
+
+            id(recalculate).press();
+
+            id(alarm_timeout)++;
+
+            if (nowmin == onat || id(on_before).state == id(next_alarm)) {
+              id(display_state).turn_on();
+            } 
+
+            if (id(alarm_timeout) == id(alarm_off).state) {
+              id(alarm_state).turn_off();
+              id(alert_now).turn_off();
+            }
+
+            if (id(next_alarm) == 0) {
+              id(alarm_state).turn_on();
+              if (id(alarm_on_once)[thisday]) {
+                id(alarm_on)[thisday] = false;
+                id(alarm_on_once)[thisday] = false;
+              }
+            }
+      - seconds: /1
+        then:
+          - lambda: |-
+              id(disp_timeout)++;
+              if (id(disp_timeout) > id(disp_return).state && (id(disp_line) < 98 || id(disp_line) > 99)) {
+                id(disp_line) = 0;
+                // Also turn display off when in the off-period, but not in the set pre and post alarm period
+                if (id(offperiod) && id(off_after).state < id(alarm_timeout) && id(on_before).state < id(next_alarm) && id(display_onoff).state && !id(alarm_state).state) {
+                  id(display_state).turn_off();
+                } 
+              }
+          - if:
+              condition:
+                and:
+                  - or:
+                    - and:
+                      - switch.is_on: alarm_state
+                      - or:
+                          - switch.is_on: alarm_buzzer
+                          - binary_sensor.is_off: system_status
+                    - lambda: 'return id(playmymelody);'
+                  - not:
+                      rtttl.is_playing:
+              then:
+                - rtttl.play:
+                    rtttl: !lambda |-
+                      if(id(playmymelody)) {
+                        id(playmymelody) = false;
+                      }
+
+                      switch((int)id(mymelody).state) {
+                      case 0:
+                        return {"star_wars:d=16,o=5,b=100:4e,4e,4e,8c,p,g,4e,8c,p,g,4e,4p,4b,4b,4b,8c6,p,g,4d#,8c,p,g,4e,8p"};
+                        break;
+                      case 1:
+                        return {"mission_imp:d=16,o=6,b=95:32d,32d#,32d,32d#,32d,32d#,32d,32d#,32d,32d,32d#,32e,32f,32f#,32g,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,g,8p,g,8p,a#,p,c7,p,g,8p,g,8p,f,p,f#,p,a#,g,2d,32p,a#,g,2c#,32p,a#,g,2c,a#5,8c,2p,32p,a#5,g5,2f#,32p,a#5,g5,2f,32p,a#5,g5,2e,d#,8d"};
+                        break;
+                      case 2:
+                        return {"mario:d=4,o=5,b=100:16e6,16e6,32p,8e6,16c6,8e6,8g6,8p,8g,8p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,16p,8c6,16p,8g,16p,8e,16p,8a,8b,16a#,8a,16g.,16e6,16g6,8a6,16f6,8g6,8e6,16c6,16d6,8b,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16c7,16p,16c7,16c7,p,16g6,16f#6,16f6,16d#6,16p,16e6,16p,16g#,16a,16c6,16p,16a,16c6,16d6,8p,16d#6,8p,16d6,8p,16c6"};
+                        break;
+                      case 3:
+                        return {"AddamsFa:d=4,o=5,b=70:8f#5,16f#5,16f#5,16f#5,8b5,32d#6,8b5,32g#5,8e5,8c#6,32a5,8a#5,32c#6,8a#5,32f#5,8d#5,8b5,32f#5,8b5,32d#6,8b5,32g#5,8e5,8c#6,32b5,8a#5,32f#5,8g#5,32a#5,4b5,32f#5,8b5,32d#6,8b5,32g#5,8e5,8c#6,32a5,8a#5,32c#6,8a#5,32f#5,8d#5,8b5,32f#5,8b5,32d#6,8b5,32g#5,8e5"};
+                        break;
+                      case 4:
+                        return {"Airwolf:d=16,o=6,b=140:a#5,d#,f,g#,c#7,g#,a#,f,g#,d#,f,g#,a#5,d#,f,g#,c#7,g#,a#,f,g#,d#,f,g#,32p,4a#5,d#,f,g#,4a#,c#7,c7,g#,4a#,c#7,c7,g#,4a#,8g#.,c7,4f,4d#,8c#.,d#,8c.,g#5,4a#5,d#,f,g#,4a#,c#7,c7,g#,4a#,c#7,c7,g#,4a#,8g#.,c7,4f,4d#,8c#.,d#,8c.,g#5,4c#,f#,g#,b,4c#7,f#7,f7,b,4c#7,f#7,f7,b,4c#7,b7,a#7,f#7,1g#7"};
+                        break;
+                      case 5:
+                        return {"JamesBon:d=4,o=5,b=160:2b4,2c,2c#,2c,2b4,2c,2c#,2c,8e,16f#,16f#,8f#,f#,8e,8e,8e,8e,16g,16g,8g,g,8f#,8f#,8e,8e,16f#,16f#,8f#,f#,8e,8e,8e,8e,16g,16g,8g,g,8f#,8f#,8e,8d#6,2d6,8b,8a,2b,p,8e,8g,8p,8d#6,d.6,8g,8a#,2b.,8g,16a,16g,f#.,8b4,8e,2c#.,p,8e,8g,8p,8d#6,d.6,8g,8a#,2b.,8g,16a,16g,f#.,8b4,8d#,2e."};
+                        break;
+                      case 6:
+                        return {"Swiebert:d=4,o=5,b=125:8c,8d,8f,8f,f,p,8c,8d,8f,8f,f,p,8c,8d,8f,8f,8f,8f,8f,8f,8e,8f,g,2p,8c,8e,8g,8g,g,p,8c,8e,8g,8g,g,g,8g,8a,8c6,8c6,8c6,8c6,8c6,8a#,8a,8g,f,2p,8p,8f,8d,8f,8f,8f,8g,8f,8p,8g,8a,8c6,8c6,8c6,c6,8p,8f,8d,8f,8f,8f,8g,8f,8p,8g,8a,8c6,8c6,8c6,c6"};
+                        break;
+                      case 7:
+                        return {"Friends:d=16,o=5,b=180:4c#6,8c#6,8b,8a,4g,4g,8a,4b,4a,4p,4c#6,8c#6,8b,8a,4g,4g,8a,4b,4a,4c#6,4c#6,8c#6,8b,8a,4g,4g,8a,4b,4a,4p,4c#6,8c#6,8b,8a,4g,4g,8a,4b,4a"};
+                        break;
+                      default:
+                        return {"WakeMeUp:d=4,o=6,b=160:8e,8g,8p,8a,16c5,16p,8p,16c5,16p,8g,g,8a,8e,16c5,16p,c,8p,16c5,16p,8c,8d,8e,8f,8e,8d,8c,e,8g,8e,16c5,16p,c,8p,8e,8g,16c5,16p,8a,16c5,16p,8p,16c5,16p,8g,g,8a,8e,16c5,16p,c,8p,16c5,16p,8c,8d,8e,8f,8e,8d,8c,c,8c,8a5,g5,16c5,16p,8p,16c5,16p,8p,16c5,16p,8p,8c5"};
+                        break;
+                      }
+          - if:
+              condition:
+                and:
+                  - switch.is_on: alert_now
+                  - not:
+                      rtttl.is_playing:
+              then:
+                - rtttl.play:
+                    rtttl: "${siren}"
+
+button:
+  - platform: restart
+    name: Restart
+    id: reboot
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: Toggle all alarms off
+    id: toggle_all_off
+    icon: mdi:alarm-off
+    on_press:
+      - lambda: |-
+          for (int i = 0; i <= 6; i++) {
+            id(alarm_on)[i] = false;
+            id(alarm_on_once)[i] = false;
+          }
+    web_server:
+      sorting_weight: 5
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: Toggle weekday alarms on
+    id: toggle_all_on
+    icon: mdi:alarm-multiple
+    on_press:
+      - lambda: |-
+          for (int i = 1; i <= 5; i++) {
+            id(alarm_on)[i] = true;
+          }
+    web_server:
+      sorting_weight: 6
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: Recalculate
+    id: recalculate
+    internal: True
+    on_press: 
+      then:
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (time.day_of_week - 1);
+            int nowmin = (time.hour * 60) + time.minute;
+            int alarmtoday = (id(alarm_hour)[thisday] * 60) + id(alarm_minute)[thisday];
+            int alarmtomorrow = 1440 + (id(alarm_hour)[time.day_of_week % 7] * 60) + id(alarm_minute)[time.day_of_week % 7];
+            int onat = (id(display_onoff_hour)[0] * 60) + id(display_onoff_minute)[0];
+            int offat = (id(display_onoff_hour)[1] * 60) + id(display_onoff_minute)[1];
+
+            if (nowmin < offat && nowmin >= onat) {
+              id(offperiod) = false;
+            } else {
+              id(offperiod) = true;
+            }
+
+            if ((alarmtoday - nowmin) >= 0 && id(alarm_on)[thisday]) {
+              id(next_alarm) = alarmtoday - nowmin;
+            } else if (id(alarm_on)[time.day_of_week % 7]) {
+              id(next_alarm) = alarmtomorrow - nowmin;
+            } else {
+              id(next_alarm) = 2880;
+            }
+            
+  - platform: template
+    name: Snooze
+    id: snooze
+    internal: True
+    on_press:
+      then:
+        - lambda: |-
+            if (id(disp_line) == 98 && id(alarm_state).state) {
+              id(alarm_state).turn_off();
+            } else {
+              id(alarm_state).turn_off();
+              if (id(message_line).state != "" && id(disp_line) == 0) {
+                id(disp_line) = 1;
+              } else {
+                id(disp_line) = 0;
+              }
+            }
+            id(alert_now).turn_off();
+
+            
+switch:
+  - platform: template
+    name: "Up⁄Down toggles display"
+    id: updown_onoff
+    optimistic: True
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Automatic display on⁄off"
+    optimistic: True
+    id: display_onoff
+    entity_category: config
+    icon: mdi:monitor
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_on:
+      then:
+        - button.press:
+            id: recalculate 
+    on_turn_off:
+      then:
+        - button.press:
+            id: recalculate 
+    web_server:
+      sorting_weight: 12
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display Aan⁄Uit"
+    id: display_state
+    optimistic: True
+    restore_mode: ALWAYS_ON
+    icon: mdi:monitor
+    on_turn_on:
+      then:
+        - globals.set: 
+            id: disp_timeout
+            value: '0'
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Alarm"
+    id: alarm_state
+    icon: mdi:bell-ring
+    optimistic: True
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - switch.turn_on: display_state
+        - globals.set: 
+            id: alarm_timeout
+            value: '0'
+    on_turn_off:
+      then:
+        - rtttl.stop
+        - lambda: |-
+            auto mymelody_call = id(mymelody).make_call();
+            int newmelody = rand() % 9;
+            if (id(random_buzzer).state) {
+              mymelody_call.set_value(newmelody);
+              mymelody_call.perform();
+            }
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Alert now"
+    id: alert_now
+    icon: mdi:bell-ring
+    optimistic: True
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      then:
+        - switch.turn_on: display_state
+        - globals.set: 
+            id: alarm_timeout
+            value: '0'
+        - globals.set:
+            id: disp_line
+            value: '99'
+    on_turn_off:
+      then:
+        - rtttl.stop
+        - globals.set:
+            id: disp_line
+            value: '0'
+    web_server:
+      sorting_group_id: alarm_control
+
+  - platform: template
+    name: "Buzzer with alarm"
+    id: alarm_buzzer
+    optimistic: True
+    entity_category: config
+    icon: mdi:alarm-note
+    web_server:
+      sorting_group_id: alarm_config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    # Alarm switches. Keep at restore_mode: DISABLED. The global variable is stored to flash
+    # Setting the restore mode to something else will override the stored value of the global
+    # variable.
+  - platform: template
+    name: "Monday alarm"
+    lambda: "return id(alarm_on)[1];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[1] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[1] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[1] = false;"
+    web_server:
+      sorting_weight: 11
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Tuesday alarm"
+    lambda: "return id(alarm_on)[2];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[2] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[2] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[2] = false;"
+    web_server:
+      sorting_weight: 21
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Wednesday alarm"
+    lambda: "return id(alarm_on)[3];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[3] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[3] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[3] = false;"
+    web_server:
+      sorting_weight: 31
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Thursday alarm"
+    lambda: "return id(alarm_on)[4];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[4] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[4] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[4] = false;"
+    web_server:
+      sorting_weight: 41
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Friday alarm"
+    lambda: "return id(alarm_on)[5];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[5] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[5] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[5] = false;"
+    restore_mode: DISABLED
+    web_server:
+      sorting_weight: 51
+      sorting_group_id: alarm_time
+
+  - platform: template
+    name: "Saturday alarm"
+    lambda: "return id(alarm_on)[6];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[6] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[6] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[6] = false;"
+    web_server:
+      sorting_weight: 61
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Sunday alarm"
+    lambda: "return id(alarm_on)[0];"
+    icon: mdi:alarm
+    turn_on_action:
+      - lambda: "id(alarm_on)[0] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on)[0] = false; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[0] = false;"
+    web_server:
+      sorting_weight: 71
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Monday alarm once"
+    lambda: "return id(alarm_on_once)[1];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on)[1] = true; id(recalculate).press();"
+      - lambda: "id(alarm_on_once)[1] = true;"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[1] = false;"
+    web_server:
+      sorting_weight: 12
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Tuesday alarm once"
+    lambda: "return id(alarm_on_once)[2];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[2] = true;"
+      - lambda: "id(alarm_on)[2] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[2] = false;"
+    web_server:
+      sorting_weight: 22
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Wednesday alarm once"
+    lambda: "return id(alarm_on_once)[3];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[3] = true;"
+      - lambda: "id(alarm_on)[3] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[3] = false;"
+    web_server:
+      sorting_weight: 32
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Thursday alarm once"
+    lambda: "return id(alarm_on_once)[4];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[4] = true;"
+      - lambda: "id(alarm_on)[4] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[4] = false;"
+    web_server:
+      sorting_weight: 42
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Friday alarm once"
+    lambda: "return id(alarm_on_once)[5];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[5] = true;"
+      - lambda: "id(alarm_on)[5] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[5] = false;"
+    web_server:
+      sorting_weight: 52
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Saturday alarm once"
+    lambda: "return id(alarm_on_once)[6];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[6] = true;"
+      - lambda: "id(alarm_on)[6] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[6] = false;"
+    web_server:
+      sorting_weight: 62
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Sunday alarm once"
+    lambda: "return id(alarm_on_once)[0];"
+    icon: mdi:repeat-off
+    turn_on_action:
+      - lambda: "id(alarm_on_once)[0] = true;"
+      - lambda: "id(alarm_on)[0] = true; id(recalculate).press();"
+    turn_off_action:
+      - lambda: "id(alarm_on_once)[0] = false;"
+    web_server:
+      sorting_weight: 72
+      sorting_group_id: alarm_time
+    restore_mode: DISABLED
+
+  - platform: template
+    name: "Message"
+    id: message_switch
+    icon: mdi:led-off
+    optimistic: True
+    on_turn_on:
+      then:
+        - lambda: "id(message_state) = true;"
+    on_turn_off:
+      then:
+        - lambda: "id(message_state) = false;"
+    web_server:
+      sorting_group_id: alarm_control
+    restore_mode: RESTORE_DEFAULT_OFF
+
+  - platform: template
+    name: "Buzzer random"
+    id: random_buzzer
+    icon: mdi:music-box-multiple
+    optimistic: true
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+    restore_mode: RESTORE_DEFAULT_OFF
+
+sensor:
+  - platform: adc
+    id: source_sensor
+    pin: ${buttonpin}
+    name: button_volt
+    update_interval: 0.1s
+    attenuation: 12db
+    internal: ${hide_button_sensor}
+
+  - platform: bh1750
+    name: "Illuminance raw"
+    id: illuminance_raw
+    address: 0x23
+    update_interval: 10sec
+    icon: mdi:brightness-5
+    device_class: illuminance
+    internal: true
+    on_value:
+      then:
+        - lambda: |-
+            float temp_bright;
+
+            temp_bright = (15 / (id(max_brightness).state - id(min_brightness).state)) * (x - id(min_brightness).state);
+
+            if (temp_bright < 0) {
+              temp_bright = 0;
+            }
+            if (temp_bright > 15) {
+              temp_bright = 15;
+            }
+            id(disp_brightness) = (int)temp_bright;
+            
+  - platform: template
+    name: "Illuminance"
+    id: illuminance
+    lambda: "return id(illuminance_raw).state;"
+    icon: mdi:brightness-5
+    device_class: illuminance
+    update_interval: 120sec
+    accuracy_decimals: 1
+    unit_of_measurement: "lx" 
+    web_server:
+      sorting_group_id: alarm_environment
+          
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    entity_category: diagnostic
+    id: wifi_rssi_raw
+    update_interval: 300s
+    icon: mdi:signal
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "Alarm countdown"
+    id: alarm_countdown
+    entity_category: diagnostic
+    device_class: duration
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    lambda: "return id(next_alarm);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "After last alarm"
+    id: alarm_countup
+    entity_category: diagnostic
+    device_class: duration
+    unit_of_measurement: min
+    accuracy_decimals: 0
+    lambda: "return id(alarm_timeout);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+
+binary_sensor:
+  # Button down: Decrease alarm time when time is shown, silence alarm at alarm time set button left to true else
+  - platform: template
+    id: btn_down
+    internal: True
+    name: "Button Down"
+    lambda: |-
+      return (id(source_sensor).state > ${down_min} && id(source_sensor).state < ${down_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            auto ret_call = id(disp_return).make_call();
+            auto on_call = id(on_before).make_call();
+            auto off_call = id(off_after).make_call();
+            auto timeout_call = id(alarm_off).make_call();   
+            auto mymelody_call = id(mymelody).make_call();         
+            auto displayfont_call = id(displayfont).make_call();         
+
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
+            } else {
+              switch(id(disp_line)) {
+              case 2:
+              case 3:
+              case 4:
+              case 5:
+              case 6:
+              case 7:
+              case 8:
+                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] - 5;
+                if (id(alarm_minute)[thisday] < 0) {
+                  id(alarm_minute)[thisday] = 55;
+                  id(alarm_hour)[thisday]--;
+                  if (id(alarm_hour)[thisday] < 0) {
+                    id(alarm_hour)[thisday] = 23;
+                  }
+                }
+                break;
+              case 101:
+                id(time_changed) = true;
+                id(current_minute)--;
+                if (id(current_minute) < 0) {
+                  id(current_minute) = 59;
+                  id(current_hour)--;
+                  if (id(current_hour) < 0) {
+                    id(current_hour) = 23;
+                  }
+                }
+                break;
+              case 102:
+                id(time_changed) = true;
+                id(current_year)--;
+                if (id(current_year) < 2026) {
+                  id(current_year) = 2200;
+                }
+              case 103:
+                id(time_changed) = true;
+                id(current_day)--;
+                if (id(current_day) < 1) {
+                  id(current_month)--;
+                  if (id(current_month) < 1) {
+                    id(current_month) = 12;
+                  }
+                  id(current_day) = id(max_days)[id(current_month) - 1];
+                }
+                break;
+              case 104:
+                id(display_onoff_minute)[0] = id(display_onoff_minute)[0] - 5;
+                if (id(display_onoff_minute)[0] < 0) {
+                  id(display_onoff_minute)[0] = 55;
+                  id(display_onoff_hour)[0]--;
+                  if (id(display_onoff_hour)[0] < 0) {
+                    id(display_onoff_hour)[0] = 23;
+                  }
+                }
+                break;
+              case 105:
+                id(display_onoff_minute)[1] = id(display_onoff_minute)[1] - 5;
+                if (id(display_onoff_minute)[1] < 0) {
+                  id(display_onoff_minute)[1] = 55;
+                  id(display_onoff_hour)[1]--;
+                  if (id(display_onoff_hour)[1] < 0) {
+                    id(display_onoff_hour)[1] = 23;
+                  }
+                }
+                break;
+              case 106:
+                ret_call.number_decrement(true);
+                ret_call.perform();
+                break;
+              case 107:
+                on_call.number_decrement(true);
+                on_call.perform();
+                break;
+              case 108:
+                off_call.number_decrement(true);
+                off_call.perform();
+                break;
+              case 109:
+                displayfont_call.number_decrement(true);
+                displayfont_call.perform();
+                break;              
+              case 110:
+                timeout_call.number_decrement(true);
+                timeout_call.perform();
+                break;
+              case 111:
+                id(buzzer_pwm).stop();
+                mymelody_call.number_decrement(true);
+                mymelody_call.perform();
+                break;
+              case 112:
+                id(random_buzzer).toggle();
+              default:
+                if (id(updown_onoff).state) {
+                  id(display_state).toggle();
+                } else {
+                  id(btn_left) = true;
+                }
+                break;
+              }
+            }
+    on_release:
+      then:
+        - lambda: "id(btn_left) = false;"
+    filters:
+      - autorepeat:
+          - delay: 500ms
+            time_on: 250ms
+            time_off: 250ms
+          - delay: 5000ms
+            time_on: 100ms
+            time_off: 100ms
+
+  # Button up: Increase alarm time when time is shown, silence alarm at alarm time set button right to true else
+  - platform: template
+    id: btn_up
+    name: "Button Up"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state > ${up_min} && id(source_sensor).state <= ${up_max});
+    on_press:
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            auto ret_call = id(disp_return).make_call();
+            auto on_call = id(on_before).make_call();
+            auto off_call = id(off_after).make_call();
+            auto timeout_call = id(alarm_off).make_call();
+            auto mymelody_call = id(mymelody).make_call();
+            auto displayfont_call = id(displayfont).make_call();
+
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
+            } else {
+              switch(id(disp_line)) {
+              case 2:
+              case 3:
+              case 4:
+              case 5:
+              case 6:
+              case 7:
+              case 8:
+                id(alarm_minute)[thisday] = id(alarm_minute)[thisday] + 5;
+                if (id(alarm_minute)[thisday] > 55) {
+                  id(alarm_minute)[thisday] = 0;
+                  id(alarm_hour)[thisday]++;
+                  if (id(alarm_hour)[thisday] > 23) {
+                    id(alarm_hour)[thisday] = 0;
+                  }
+                }
+                break;
+              case 101:
+                id(time_changed) = true;
+                id(current_minute)++;
+                if (id(current_minute) > 59) {
+                  id(current_minute) = 0;
+                  id(current_hour)++;
+                  if (id(current_hour) > 23) {
+                    id(current_hour) = 0;
+                  }
+                }
+                break;
+              case 102:
+                id(time_changed) = true;
+                id(current_year)++;
+                if (id(current_year) > 2200) {
+                  id(current_year) = 2026;
+                }
+                break;
+              case 103:
+                id(time_changed) = true;
+                id(current_day)++;
+                if (id(current_day) > id(max_days)[id(current_month) - 1]) {
+                  id(current_month)++;
+                  if (id(current_month) > 12) {
+                    id(current_month) = 1;
+                  }
+                  id(current_day) = 1;
+                }
+              case 104:
+                id(display_onoff_minute)[0] = id(display_onoff_minute)[0] + 5;
+                if (id(display_onoff_minute)[0] > 55) {
+                  id(display_onoff_minute)[0] = 0;
+                  id(display_onoff_hour)[0]++;
+                  if (id(display_onoff_hour)[0] > 23) {
+                    id(display_onoff_hour)[0] = 0;
+                  }
+                }
+                break;
+              case 105:
+                id(display_onoff_minute)[1] = id(display_onoff_minute)[1] + 5;
+                if (id(display_onoff_minute)[1] > 55) {
+                  id(display_onoff_minute)[1] = 0;
+                  id(display_onoff_hour)[1]++;
+                  if (id(display_onoff_hour)[1] > 23) {
+                    id(display_onoff_hour)[1] = 0;
+                  }
+                }
+                break;
+              case 106:
+                ret_call.number_increment(true);
+                ret_call.perform();
+                break;
+              case 107:
+                on_call.number_increment(true);
+                on_call.perform();
+                break;
+              case 108:
+                off_call.number_increment(true);
+                off_call.perform();
+                break;
+              case 109:
+                displayfont_call.number_increment(true);
+                displayfont_call.perform();
+                break;
+              case 110:
+                timeout_call.number_increment(true);
+                timeout_call.perform();
+                break;
+              case 111:
+                id(buzzer_pwm).stop();
+                mymelody_call.number_increment(true);
+                mymelody_call.perform();
+                break;
+              case 112:
+                id(random_buzzer).toggle();
+              default:
+                if (id(updown_onoff).state) {
+                  id(display_state).toggle();
+                } else {
+                  id(btn_right) = true;
+                }
+                break;
+              }
+            }
+    on_release:
+      then:
+        - lambda: "id(btn_right) = false;"
+    filters:
+      - autorepeat:
+          - delay: 500ms
+            time_on: 250ms
+            time_off: 250ms
+          - delay: 5000ms
+            time_on: 100ms
+            time_off: 100ms
+            
+  # Button OnOff: Toggle the alarm and alarm_once on doubleclick, silence alarm at alarm time toggle display else.
+  - platform: template
+    id: btn_onoff
+    name: "Button OnOff"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state > ${onoff_min} && id(source_sensor).state <= ${onoff_max});
+    on_multi_click:
+    - timing:
+        - ON for at most 1.5s
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            ESPTime now = id(esptime).now();
+            ESPTime utcnow = id(esptime).utcnow();
+            int thisday = (id(disp_line) + now.day_of_week - 2) % 7;
+
+            // Helper function to convert decimal to BCD
+            auto dec_to_bcd = [](uint8_t val) -> uint8_t {
+              return ((val / 10) << 4) | (val % 10);
+            };
+ 
+            // Convert to BCD                                                                                                                                                             
+            uint8_t bcd_seconds = dec_to_bcd(utcnow.second);                                                                                                                                          
+            uint8_t bcd_minutes = dec_to_bcd(utcnow.minute);                                                                                                                         
+            uint8_t bcd_hours = dec_to_bcd(utcnow.hour);                                                                                                               
+            uint8_t bcd_day_of_week = dec_to_bcd(utcnow.day_of_week);                                                                                                                     
+            uint8_t bcd_day_of_month = dec_to_bcd(utcnow.day_of_month);                                                                                                                   
+            uint8_t bcd_month = dec_to_bcd(utcnow.month);                                                                                                                                 
+            uint8_t bcd_year = dec_to_bcd(utcnow.year - 2000);                                                                                                                            
+            uint8_t start_addr = 0x00;
+
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
+            } else {
+              if (id(buzzer_pwm).is_playing()) {
+                id(buzzer_pwm).stop();
+              }
+              
+              switch(id(disp_line)) {
+              case 0:
+                id(display_state).toggle();
+                break;
+              case 1:
+                id(display_state).toggle();
+                break;
+              case 100:
+                if (id(wifi_enabled)) {
+                  id(wifi_enabled) = false;
+                  id(updown_onoff).turn_off();
+                  id(clock_wifi).disable();
+                } else {
+                  id(wifi_enabled) = true;
+                  id(clock_wifi).enable();
+                }
+                break;
+              case 101:
+                if (id(time_changed)) {
+                  int time_offset = now.hour - utcnow.hour;
+
+                  // Convert to BCD
+                  uint8_t bcd_seconds = dec_to_bcd(0);
+                  uint8_t bcd_minutes = dec_to_bcd(id(current_minute));
+                  uint8_t bcd_hours = dec_to_bcd(id(current_hour) - time_offset);
+
+                  // Create a buffer with the time data
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};
+
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %2d:%2d", id(current_hour) - time_offset, id(current_minute));
+                  }
+                  id(esptime).read_time();
+                  id(time_changed) = false;
+                }
+                break;
+              case 102:
+                if (id(time_changed)) {
+                  int time_offset = now.year - utcnow.year;
+
+                  // Convert to BCD
+                  uint8_t bcd_year = dec_to_bcd(id(current_year) - 2000 - time_offset);
+
+                  // Create a buffer with the time data
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};
+
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %d", id(current_year) - time_offset);
+                  }
+                  id(esptime).read_time();
+                  id(time_changed) = false;
+                }
+                break;
+              case 103:
+                if (id(time_changed)) {
+                  int time_offset_m = now.month - utcnow.month;                                                                                                                                          
+                  int time_offset_d = now.day_of_month - utcnow.day_of_month;
+
+                  // Convert to BCD                                                                                                                                                             
+                  uint8_t bcd_month = dec_to_bcd(id(current_month) - time_offset_m);                                                                                                         
+                  uint8_t bcd_day_of_month = dec_to_bcd(id(current_day) - time_offset_d);                                                                                                         
+                                                                                                                                            
+                  // Create a buffer with the time data                                                                                                                                         
+                  uint8_t time_data[7] = {bcd_seconds,bcd_minutes,bcd_hours,bcd_day_of_week,bcd_day_of_month,bcd_month,bcd_year};                                                               
+ 
+                  auto err = id(my_ds1307).write_register(start_addr, time_data, 7);
+                  if (err != i2c::ERROR_OK) {
+                    ESP_LOGE("main", "Failed to write to DS1307: %d", err);
+                  } else {
+                    ESP_LOGD("main", "Time send to DS1307 %2d-%2d", id(current_month) - time_offset_m, id(current_day) - time_offset_d);
+                  }
+                  id(esptime).read_time();
+                  id(time_changed) = false;
+                }
+                break;
+              case 104:
+              case 105:
+              case 106:
+              case 107:
+              case 108:
+              case 109:
+                id(display_onoff).toggle();
+                break;
+              case 110:
+              case 112:
+                id(alarm_buzzer).toggle();
+                break;
+              case 111:
+                if (id(buzzer_pwm).is_playing()) {
+                  id(buzzer_pwm).stop();
+                } else {
+                  id(playmymelody) = true;
+                }
+                break;
+              default:
+                if (id(alarm_on)[thisday]) {
+                  id(alarm_on)[thisday] = false;
+                  id(alarm_on_once)[thisday] = false;
+                } else {
+                  id(alarm_on)[thisday] = true;
+                }
+                break;
+              }
+            }
+            id(recalculate).press();
+    - timing:
+        - ON for at least 1.5s
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            auto time = id(esptime).now();
+            int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
+            } else {
+              switch(id(disp_line)) {
+              case 0:
+                id(display_state).toggle();
+                break;
+              case 1:
+                id(display_state).toggle();
+                break;
+              case 100:
+              case 101:
+              case 102:
+              case 103:
+                id(display_state).toggle();
+                break;
+              case 104:
+              case 105:
+              case 106:
+              case 107:
+              case 108:
+              case 109:
+                id(display_onoff).toggle();
+                break;
+              case 110:
+              case 112:
+                id(alarm_buzzer).toggle();
+                break;
+              case 111:
+                if (id(playmymelody)) {
+                  id(playmymelody) = false;
+                } else {
+                  id(playmymelody) = true;
+                }
+                break;
+              default:
+                if (id(alarm_on)[thisday]) {
+                  id(alarm_on_once)[thisday] = false;
+                } else {
+                  id(alarm_on)[thisday] = true;
+                  id(alarm_on_once)[thisday] = true;
+                }
+                break;
+              }
+            }
+            id(recalculate).press();
+    
+  # Button Display: Walk through the lines, but no IP number, silence alarm at alarm time. Turn of display when off.
+  - platform: template
+    id: btn_display
+    name: "Button Display"
+    internal: True
+    lambda: |-
+      return (id(source_sensor).state >= ${display_min} && id(source_sensor).state < ${display_max});
+    on_multi_click:
+    - timing:
+        - ON for at most 1.5s
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - lambda: |-
+            if (id(alarm_state).state || id(alert_now).state || id(disp_line) == 98) {
+              id(snooze).press();
+            } else {
+              if (!id(display_state).state) {
+                id(display_state).turn_on();
+              } else {
+                id(disp_line)++;
+            #ifndef HAS_TVOC
+                if (id(message_line).state == "" && id(disp_line) == 1) {
+                  id(disp_line) = 2;
+                }
+            #endif
+                if (id(disp_line) < 100) {
+                  if (id(disp_line) > 8) {
+                    id(disp_line) = 0;
+                  }
+                } else {
+                  if (id(disp_line) > 112) {
+                    id(disp_line) = 0;
+                  }
+                  if (id(disp_line) == 101) {
+                    auto time = id(esptime).now();
+                    id(current_hour) = time.hour;
+                    id(current_minute) = time.minute;
+                    id(time_changed) = false;
+                  }
+                  if (id(disp_line) == 102) {
+                    auto time = id(esptime).now();
+                    id(current_year) = time.year;
+                    id(time_changed) = false;
+                  }
+                  if (id(disp_line) == 103) {
+                    auto time = id(esptime).now();
+                    id(current_month) = time.month;
+                    id(current_day) = time.day_of_month;
+                    id(time_changed) = false;
+                  }
+                }
+              }
+            }
+    - timing:
+        - ON for at least 1.5s
+      then:
+        - globals.set:
+            id: disp_timeout
+            value: '0'
+        - globals.set:
+            id: disp_line
+            value: '100'
+
+  # Expose left and right button actions to HA for followup in automations
+  # Binary sensor is only toggled when display does not show an alarm time.
+  - platform: template
+    name: "Left button"
+    lambda: "return id(btn_left);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  - platform: template
+    name: "Right button"
+    lambda: "return id(btn_right);"
+    web_server:
+      sorting_group_id: alarm_diag
+
+  # Connection to HA. Used at alarm time
+  - platform: status
+    entity_category: diagnostic
+    id: system_status
+    name: "Status"
+    web_server:
+      sorting_group_id: alarm_diag
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      entity_category: diagnostic
+      name: IP Address
+      id: ip_address
+      icon: mdi:ip-network
+      address_0:
+        name: IP Address 0
+        web_server:
+          sorting_group_id: alarm_diag
+      address_1:
+        name: IP Address 1
+        web_server:
+          sorting_group_id: alarm_diag
+      address_2:
+        name: IP Address 2
+        web_server:
+          sorting_group_id: alarm_diag
+      web_server:
+        sorting_group_id: alarm_diag
+    mac_address:
+      entity_category: diagnostic
+      name: MAC Address
+      id: mac_address
+      icon: mdi:expansion-card
+      web_server:
+        sorting_group_id: alarm_diag
+        
+  - platform: template
+    id: message_line
+    name: "Message line"
+    icon: mdi:message
+    web_server:
+      sorting_group_id: alarm_diag
+      
+  - platform: template
+    id: show_message
+    name: "Time interrupting Message"
+    icon: mdi:message
+    on_value:
+      then:
+        - if:
+            condition: 
+              lambda: 'return x != "";'
+            then:
+              - globals.set:
+                  id: disp_line
+                  value: '98'
+    web_server:
+      sorting_group_id: alarm_diag
+
+# Configurations from web interface and HA.
+number:
+  - platform: template
+    name: "Display on before alarm"
+    id: on_before
+    optimistic: True
+    min_value: 0
+    max_value: 120
+    step: 1
+    initial_value: 0
+    mode: slider
+    restore_value: True
+    icon: mdi:clock-start
+    entity_category: config
+    device_class: duration
+    unit_of_measurement: m
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display off after alarm"
+    id: off_after
+    optimistic: True
+    min_value: 0
+    max_value: 120
+    step: 1
+    initial_value: 0
+    mode: slider
+    restore_value: True
+    icon: mdi:clock-end
+    entity_category: config
+    device_class: duration
+    unit_of_measurement: m
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Minimum brightness at"
+    id: min_brightness
+    optimistic: true
+    min_value: 0
+    max_value: 50
+    initial_value: 10
+    device_class: illuminance
+    mode: slider
+    restore_value: True
+    step: 1
+    icon: mdi:brightness-4
+    unit_of_measurement: lx
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Maximum brightness at"
+    id: max_brightness
+    optimistic: true
+    min_value: 10
+    max_value: 100
+    unit_of_measurement: lx
+    device_class: illuminance
+    initial_value: 40
+    mode: slider
+    restore_value: True
+    step: 10
+    icon: mdi:brightness-5
+    entity_category: config
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Display timeout in seconds"
+    min_value: 0
+    max_value: 300
+    step: 5
+    mode: slider
+    unit_of_measurement: s
+    device_class: duration
+    initial_value: 30
+    entity_category: config
+    id: disp_return
+    optimistic: True
+    icon: mdi:keyboard-return
+    web_server:
+      sorting_group_id: alarm_config
+
+  - platform: template
+    name: "Alarm timeout in minutes"
+    min_value: 1
+    max_value: 90
+    step: 1
+    mode: slider
+    restore_value: True
+    initial_value: 20
+    unit_of_measurement: min
+    device_class: duration
+    entity_category: config
+    id: alarm_off
+    optimistic: True
+    icon: mdi:alarm-snooze
+    web_server:
+      sorting_group_id: alarm_config
+      
+  - platform: template
+    name: "Alarm melody"
+    min_value: 0
+    max_value: 8
+    step: 1
+    mode: slider
+    restore_value: True
+    initial_value: 2
+    entity_category: config
+    id: mymelody
+    optimistic: True
+    icon: mdi:music-note
+    web_server:
+      sorting_group_id: alarm_config
+  
+  - platform: template
+    name: "Display font"
+    min_value: 0
+    max_value: 3
+    step: 1
+    mode: slider
+    restore_value: True
+    initial_value: 0
+    entity_category: config
+    id: displayfont
+    optimistic: True
+    icon: mdi:format-font
+    web_server:
+      sorting_group_id: alarm_config
+
+    
+# Use the spleen font dor alarm time display als it allows for 6 characters
+# Use matrix font for time. Only 5 characters in display, full height of display is used.
+font:
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/MatrixFont-5x8.bdf"
+    id: digit_font
+    size: 8
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/MatrixFont-6x8.bdf"
+    id: matrix_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Segment-6x8.bdf"
+    id: segment_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Aurebesh-6x8.bdf"
+    id: aurebeshnumber_font
+  - file: "https://raw.githubusercontent.com/lancer73/ESPHome-Alarm-Clock/main/Aurebesh_2-6x8.bdf"                                                                                               
+    id: aurebesh_font
+
+display:
+  - platform: max7219digit
+    cs_pin: ${dispcspin}
+    num_chips: 4
+    rotate_chip: ${chip_orient}
+    reverse_enable: ${reverse_enable}
+    intensity: 15
+    lambda: |-
+      char alarm_day[]="${weekdays}";
+      auto time = id(esptime).now();
+      int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+
+      if (id(display_state).state) {
+        it.turn_on_off(true);
+        it.intensity(id(disp_brightness));
+        if (id(alarm_state).state || id(alert_now).state) {
+          it.invert_on_off(true);
+        } else {
+          it.invert_on_off(false);
+        }
+
+        switch(id(disp_line)) {
+        case 0:
+        #ifdef HAS_LED
+          it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
+        #else
+          if (id(next_alarm) < 2880 || id(message_state)) {
+            switch((int)id(displayfont).state) {
+            case 1:
+              it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            case 2:
+              it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            case 3:
+              it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);                                                                                     
+              break;
+            default:
+              it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+              break;
+            }
+            if(id(next_alarm) < 2880) {
+              it.line(31,0,31,0);
+            }
+            if (id(message_state)) {
+              it.line(31,7,31,7);
+            }
+          } else {
+            it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
+          }
+        #endif
+          break;
+        case 1:
+        #ifdef HAS_TVOC
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s >%.0f..c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);                        
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s >%.0f°c voc %.0fppb", id(message_line).state.c_str(), id(temperature).state, id(tvoc).state);
+            break;
+          }
+        #else
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());                                                                                    
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(message_line).state.c_str());
+            break;
+          }
+        #endif
+          break;
+        case 98:
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          case 2:
+            it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          case 3:
+            it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());                                                                                    
+            break;
+          default:
+            it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, " %s", id(show_message).state.c_str());
+            break;
+          }  
+          break;      
+        case 99:
+          // Always in clear font
+          it.print(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "ALARM");
+          break;
+        case 100:
+          if (id(wifi_enabled)) {
+            it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, " %s", id(ip_address)[0].state.c_str());
+          } else {
+            it.print(16, 0, id(digit_font), TextAlign::TOP_CENTER, "Wifi");
+            it.line(0,7,31,0);
+          }
+          break;
+        case 101:
+        #ifndef HAS_LED
+          if (id(time_changed)) {
+            it.line(31,0,31,0);
+          } 
+        #endif
+          it.print(0,0, id(digit_font), TextAlign::TOP_LEFT, "St");
+          it.printf(11,0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(current_hour),(int)id(current_minute));
+          break;
+        case 102:
+        #ifndef HAS_LED
+          if (id(time_changed)) {
+            it.line(31,0,31,0);
+          } 
+        #endif
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sy");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%4d", (int)id(current_year));
+          break;
+        case 103:
+        #ifndef HAS_LED
+          if (id(time_changed)) {
+            it.line(31,0,31,0);
+          } 
+        #endif
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sd");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%2d", (int)id(current_day), (int)id(current_month));
+          break;
+        case 104:
+        #ifndef HAS_LED
+          if (id(display_onoff).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "On");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[0], (int)id(display_onoff_minute)[0]);
+          break;
+        case 105:
+        #ifndef HAS_LED
+          if (id(display_onoff).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Of");
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[1], (int)id(display_onoff_minute)[1]);
+          break;
+        case 106:
+        #ifndef HAS_LED
+          if (id(display_onoff).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Dt %2ds", (int)id(disp_return).state);
+          break;
+        case 107:
+        #ifndef HAS_LED
+          if (id(display_onoff).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Db %2dm", (int)id(on_before).state);
+          break;
+        case 108:
+        #ifndef HAS_LED
+          if (id(display_onoff).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Da %2dm", (int)id(off_after).state);
+          break;
+        case 109:
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Segment,");
+            break;          
+          case 2:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Aurebesh,");
+            break;
+          case 3:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Aurebesh Numbers,");                                                                                                               
+            break;
+          default:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Normal,");
+            break;
+          }
+          break;
+        case 110:
+        #ifndef HAS_LED
+          if (id(alarm_buzzer).state) {
+            it.line(31,0,31,0);
+          }
+        #endif
+          it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "At %2dm", (int)id(alarm_off).state);
+          break;
+        case 111:
+          switch((int)id(mymelody).state) {
+          case 0:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Star Wars,");
+            break;
+          case 1:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Mission Impossible,");
+            break;          
+          case 2:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Mario Kart,");
+            break;
+          case 3:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Addams Family,");
+            break;
+          case 4:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Airwolf,");
+            break;
+          case 5:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "James Bond,");
+            break;
+          case 6:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Swiebertje,");
+            break;
+          case 7:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Friends,");
+            break;          
+          default:
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Wake Me Up,");
+            break;
+          }
+          break;
+        case 112:
+        #ifndef HAS_LED                                                                                                                                                                        
+          if (id(alarm_buzzer).state) {                                                                                                                                                        
+            it.line(31,0,31,0);                                                                                                                                                                
+          }                                                                                                                                                                                    
+        #endif 
+          if (id(random_buzzer).state) {
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Ab");
+            it.print(11, 0, id(digit_font), TextAlign::TOP_LEFT, "rand");
+          } else {
+            it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Ab");
+            it.print(11, 0, id(digit_font), TextAlign::TOP_LEFT, "same");
+          }
+          break;
+        default:
+          it.printf(0,0, id(digit_font), TextAlign::TOP_LEFT, "%c%c", alarm_day[thisday * 2], alarm_day[(thisday * 2) + 1]);
+          it.printf(11,0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(alarm_hour)[thisday],(int)id(alarm_minute)[thisday]);
+        #ifndef HAS_LED
+          if (id(alarm_on)[thisday]) {
+            it.line(31,0,31,0);
+          }
+          if (id(alarm_on_once)[thisday]) {
+            it.line(31,2,31,2);
+          }
+        #endif
+          break;
+        }
+      } else {
+        it.turn_on_off(false);
+      }
+
