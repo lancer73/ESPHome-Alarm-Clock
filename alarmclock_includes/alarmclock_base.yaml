@@ -558,7 +558,7 @@ button:
       then:
         - lambda: |-
             id(alert_now).turn_off();
-            id (id(disp_line) == 98 && id(alarm_state).state) {
+            if (id(disp_line) == 98 && id(alarm_state).state) {
               id(alarm_state).turn_off();
             } else {
               id(alarm_state).turn_off();
