@@ -557,7 +557,6 @@ button:
     on_press:
       then:
         - lambda: |-
-            id(alert_now).turn_off();
             if (id(disp_line) == 98 && id(alarm_state).state) {
               id(alarm_state).turn_off();
             } else {
@@ -568,6 +567,8 @@ button:
                 id(disp_line) = 0;
               }
             }
+            id(alert_now).turn_off();
+
             
 switch:
   - platform: template
@@ -1592,6 +1593,7 @@ text_sensor:
               - globals.set:
                   id: disp_line
                   value: '98'
+              - switch.turn_on: display_state
     web_server:
       sorting_group_id: alarm_diag
 
@@ -1755,6 +1757,7 @@ display:
       char alarm_day[]="${weekdays}";
       auto time = id(esptime).now();
       int thisday = (id(disp_line) + time.day_of_week - 2) % 7;
+      int alignment = 1;
 
       if (id(display_state).state) {
         it.turn_on_off(true);
@@ -1767,32 +1770,35 @@ display:
 
         switch(id(disp_line)) {
         case 0:
-        #ifdef HAS_LED
-          it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
-        #else
+        #ifndef HAS_LED
           if (id(next_alarm) < 2880 || id(message_state)) {
-            switch((int)id(displayfont).state) {
-            case 1:
-              it.printf(0, 0, id(segment_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
-              break;
-            case 2:
-              it.printf(0, 0, id(aurebesh_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
-              break;
-            case 3:
-              it.printf(0, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);                                                                                     
-              break;
-            default:
-              it.printf(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
-              break;
-            }
+            alignment = 0;
+          }
+        #endif
+        
+          switch((int)id(displayfont).state) {
+          case 1:
+            it.printf(alignment, 0, id(segment_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+            break;
+          case 2:
+            it.printf(alignment, 0, id(aurebesh_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+            break;
+          case 3:
+            it.printf(alignment, 0, id(aurebeshnumber_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);                                                                                     
+            break;
+          default:
+            it.printf(alignment, 0, id(matrix_font), TextAlign::TOP_LEFT, "%2d:%02d", time.hour, time.minute);
+            break;
+          }
+
+        #ifndef HAS_LED 
+          if (id(next_alarm) < 2880 || id(message_state)) {
             if(id(next_alarm) < 2880) {
               it.line(31,0,31,0);
             }
             if (id(message_state)) {
               it.line(31,7,31,7);
             }
-          } else {
-            it.printf(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "%2d:%02d", time.hour, time.minute);
           }
         #endif
           break;
