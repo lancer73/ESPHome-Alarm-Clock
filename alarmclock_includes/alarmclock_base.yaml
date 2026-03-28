@@ -562,7 +562,7 @@ button:
               id(alarm_state).turn_off();
             } else {
               id(alarm_state).turn_off();
-              if (id(message_line).state != "") {
+              if (id(message_line).state != "" && id(disp_line) == 0) {
                 id(disp_line) = 1;
               } else {
                 id(disp_line) = 0;
@@ -1847,7 +1847,7 @@ display:
           break;      
         case 99:
           // Always in clear font
-          it.print(0, 0, id(matrix_font), TextAlign::TOP_CENTER, "ALARM");
+          it.print(16, 0, id(matrix_font), TextAlign::TOP_CENTER, "ALARM");
           break;
         case 100:
           if (id(wifi_enabled)) {
