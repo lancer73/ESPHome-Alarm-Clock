@@ -1847,7 +1847,7 @@ display:
           break;      
         case 99:
           // Always in clear font
-          it.print(0, 0, id(matrix_font), TextAlign::TOP_LEFT, "ALARM");
+          it.print(0, 0, id(matrix_font), TextAlign::TOP_CENTER, "ALARM");
           break;
         case 100:
           if (id(wifi_enabled)) {
