@@ -7,7 +7,8 @@ Alarm clock built in ESPhome with the following features:
 - Automatic fallback to piezo buzzer
 - Sensors for automations before and after the alarm time
 - Alarm can be triggered from HA for normal and emergency situations
-- Switchable led from HA to convey a message
+- Switchable led from HA to convey a message or reminder
+- Banner message functionality
 - Can work without wifi/home assistant. Most important settings are accessible from the alarm clock itself.
 
 There are two different versions of the alarm clock. A full version with additional leds and environmental sensors and a light version. 3D print designs are included for both. The normal version has buttons at the top and sensors in the back, the light version has buttons on the front and a ligh sensor on the top.
@@ -122,6 +123,9 @@ If the display shows an alarm time, the amber led will indicate if an alarm has 
 #### When the alarm goes off
 When the alarm goes off, the display will invert. Either Home Assistant will arrange the audible alarm e.g. by turning on a remotely controlled speaker, or you can use the built in buzzer. If the connection to Home Assistant has been severed the buzzer will sound anyway. You can use any button to snooze the alarm. The alarm will turn off by itself after 90 minutes by default.
 
+#### When a message is shown
+Press any button to dismiss the message. If the message is shown when the alarm goes off, the first press silences the alarm, the second press dismisses the message. I turn my alarm off without looking, that is why a second press is needed.
+
 #### Setting the time manually
 Normally the clock will take the time from the Internet. If the Internet is not available, or if you have disabled the wifi you can set the ime manually.
 
@@ -179,8 +183,8 @@ The following configurations will also influence the display state:
 | Switch | Meaning |
 |:-------|:--------|
 | Alarm | Will turn on when the alarm goes off. To be used in automation to turn on remote speakers or lights when the alarm goes off. Can also be switched on from home assistant. E.g. to synchronise alarms |
-| Alert now | Will invert the diplay and sound a siren using the piezo buzzer. For connecting the alarm clock to a fire alarm, or just to get a teenager out of bed. Alarm can be turned off using a button on the clock. |
-| Message | Will turn on/off the message led as a remined for something, like putting the trash cans out or something else. |
+| Alert now | Will invert the diplay show "ALARM" and sound a siren using the piezo buzzer. For connecting the alarm clock to a fire alarm, or just to get a teenager out of bed. Alarm can be turned off using a button on the clock. |
+| Message | Will turn on/off the message/reminder led as a reminder for something, like putting the trash cans out or something else. |
 | Buzzer with alarm | When the switch is off, the buzzer will only sound if the connection with Home Assistant has been interrupted. Turn this off if you have an automation to pick up the state of the alarm switch. |
 | Buzzer random | Will eelect a random value for the next buzzer. This will actually change the Melody selector |
 | Up/Down toggles display | Turn this on if you don't want any automations connected to the up/down buttons. If this switch is on up/down toggles the display on/off when the display shows normal time. |
@@ -195,8 +199,8 @@ The following configurations will also influence the display state:
 | Display font | Font of the time and message display. 0 is the normal font, 1 mimics a segment display, 2 is Aurebesh (Star Wars) and 3 is also Aurebesh, but with the numbers used for currency |
 | Melody | Select melody 0 to 8 to play a melody when the alarm sounds (and the buzzer is enabled). Melody choices are: 0 - Star Wars (Emprire strikes back), 1 - Mission Impossible, 2 - Mario Kart, 3 - Addam Family, 4 - Airwolf, 5 - James Bond, 6 - Swiebertje, 7 - Friends and 8 - Wake Me Up  |             
 
-#### Publishing a message
-You can send a message to the alarm clock. E.g. to display the outside temperature when the alarm clock goes of, or when the display button is pressed once. You can do this via an automation in Home Assistant. To send the outside temperature every 5 minutes the scipt looks something like this:
+#### Publishing a message for the second display line
+You can send a message to the alarm clock. E.g. to display the outside temperature or a message when the alarm clock goes of, or when the display button is pressed once. You can do this via an automation in Home Assistant. To send the outside temperature every 5 minutes the scipt looks something like this:
 ```
 alias: Alarm Clock Message
 description: "Send regular updates to the alarm clock"
@@ -213,6 +217,28 @@ actions:
         }}°C
 mode: single
 ```
+
+#### Publishing a banner message
+There is a second way to send a message to the alarm clock. Where the first method publishes a message on the second display line (you must press a button to see), this method shows directly, without need for interaction on the alarm clock. The user can dismiss the message on the alarm clock by pressing a button. If the message is published before the alarm goes off, the message will survive the silencing of the alarm.
+
+You can, for instance, define an input_text helper in Home Assistant to display a message on the alarm clock. After definition of the helper, create the following automation:
+```
+alias: Set banner message in alarm clock
+description: ""
+triggers:
+  - trigger: state
+    entity_id:
+      - input_text.[my_helper]
+conditions:
+  - condition: template
+    value_template: "{{ (as_timestamp(now()) - as_timestamp(states(\"sensor.uptime\"))) > 60 }}"
+actions:
+  - action: esphome.[device_name]_banner_message
+    data:
+      message: "{{ states('input_text.[my_helper]') }}"
+mode: single
+```
+
 
 #### Font showcase
 | Font | Image|
