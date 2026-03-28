@@ -239,7 +239,6 @@ actions:
 mode: single
 ```
 
-
 #### Font showcase
 | Font | Image|
 |:-----|-----:|
@@ -247,6 +246,592 @@ mode: single
 | Aurebesh | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/745a447ef462d0d99a14e7984487b851e464f824/images/aurebesh.jpg" width="400px"></figure> |
 | Aurebesh numbers | <figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/745a447ef462d0d99a14e7984487b851e464f824/images/aurebeshnumbers.jpg" width="400px"></figure> |
 
+## Home Assistant dashboards
+I also created some dashboards to control the alarm clock. I have one dashboard with all the alarm clocks and the alarm for the next day and a dedicated dashboard per alarm clock for all the settings. This requires the Mushroom addon cards.
 
+### The short insert into an overview page
+```
+type: grid
+cards:
+  - type: heading
+    heading: Wekkers
+    heading_style: title
+    icon: mdi:alarm
+  - type: heading
+    icon: mdi:face-man-outline
+    heading_style: subtitle
+    heading: Alarm Clock John
+    badges: []
+  - type: tile
+    entity: time.[device_name]_monday_alarm
+    name: Maandag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sun
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_monday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sun
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_monday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sun
+  - type: tile
+    entity: time.[device_name]_tuesday_alarm
+    name: Dinsdag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - mon
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_tuesday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - mon
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_tuesday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - mon
+  - type: tile
+    entity: time.[device_name]_wednesday_alarm
+    name: Woensdag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - tue
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_wednesday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - tue
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_wednesday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - tue
+  - type: tile
+    entity: time.[device_name]_thursday_alarm
+    name: Donderdag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - wed
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_thursday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - wed
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_thursday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - wed
+  - type: tile
+    entity: time.[device_name]l_friday_alarm
+    name: Vrijdag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - thu
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_friday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - thu
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_friday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - thu
+  - type: tile
+    entity: time.[device_name]_saturday_alarm
+    name: Zaterdag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - fri
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_saturday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - fri
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_saturday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - fri
+  - type: tile
+    entity: time.[device_name]_sunday_alarm
+    name: Zondag
+    vertical: false
+    features_position: bottom
+    grid_options:
+      columns: 6
+      rows: 1
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sat
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_sunday_alarm
+    primary_info: none
+    secondary_info: none
+    hold_action:
+      action: more-info
+    tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sat
+  - type: custom:mushroom-entity-card
+    entity: switch.[device_name]_sunday_alarm_once
+    primary_info: none
+    secondary_info: none
+    tap_action:
+      action: toggle
+    hold_action:
+      action: more-info
+    double_tap_action:
+      action: toggle
+    visibility:
+      - condition: time
+        after: "00:00:00"
+        before: "23:59:00"
+        weekdays:
+          - sat
+  - type: tile
+    grid_options:
+      columns: full
+    entity: binary_sensor.[device_name]_status
+    name: Alle wektijden
+    icon: mdi:clock-digital
+    color: primary
+    hide_state: true
+    vertical: false
+    tap_action:
+      action: navigate
+      navigation_path: /lovelace/[device_name]
+    icon_tap_action:
+      action: navigate
+      navigation_path: /lovelace/[device_name]
+```
+### A subview for all alarm clock settings
+```
+type: sections
+max_columns: 2
+title: Alarm clock
+path: [device_name]
+icon: mdi:alarm
+sections:
+  - type: grid
+    cards:
+      - type: heading
+        icon: mdi:face-man-outline
+        heading_style: title
+        heading: Alarm Clock John
+        badges:
+          - type: entity
+            show_state: true
+            show_icon: true
+            visibility:
+              - condition: numeric_state
+                entity: sensor.[device_name]_alarm_countdown
+                below: 2880
+            entity: sensor.[device_name]_alarm_countdown
+            name: Volgende over
+            state_content:
+              - name
+              - state
+            tap_action:
+              action: more-info
+      - type: tile
+        entity: button.[device_name]_toggle_all_alarms_off
+        name: Alles uit
+        hide_state: true
+        vertical: false
+        features_position: bottom
+      - type: tile
+        entity: button.[device_name]_toggle_weekday_alarms_on
+        name: Weekdagen
+        hide_state: true
+        vertical: false
+        features_position: bottom
+      - type: tile
+        entity: time.[device_name]_monday_alarm
+        name: Maandag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_monday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_monday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_tuesday_alarm
+        name: Dinsdag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_tuesday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_tuesday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_wednesday_alarm
+        name: Woensdag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_wednesday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_wednesday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_thursday_alarm
+        name: Donderdag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_thursday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_thursday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_friday_alarm
+        name: Vrijdag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_friday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_friday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_saturday_alarm
+        name: Zaterdag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_saturday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_saturday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+      - type: tile
+        entity: time.[device_name]_sunday_alarm
+        name: Zondag
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: 6
+          rows: 1
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_sunday_alarm
+        primary_info: none
+        secondary_info: none
+        hold_action:
+          action: more-info
+        tap_action:
+          action: toggle
+      - type: custom:mushroom-entity-card
+        entity: switch.[device_name]_sunday_alarm_once
+        primary_info: none
+        secondary_info: none
+        tap_action:
+          action: toggle
+        hold_action:
+          action: more-info
+        double_tap_action:
+          action: toggle
+  - type: grid
+    cards:
+      - type: heading
+        heading: Settings Alarm Clock
+        heading_style: title
+      - type: entities
+        entities:
+          - entity: switch.[device_name]_display_aan_uit
+          - entity: switch.[device_name]_automatic_display_on_off
+          - entity: time.[device_name]_display_on_at
+          - entity: time.[device_name]_display_off_at
+          - entity: number.[device_name]_display_on_before_alarm
+          - entity: number.[device_name]_display_off_after_alarm
+          - entity: number.[device_name]_display_timeout_in_seconds
+        show_header_toggle: false
+      - type: tile
+        entity: input_text.[device_name]_bericht
+        vertical: false
+        features_position: bottom
+        grid_options:
+          columns: full
+subview: true
+cards: []
+```
 
 
