@@ -65,6 +65,9 @@ interval:
                 } else {
                   id(red_led).turn_off().perform();
                 }
+          #ifndef HAS_TVOC
+               id(amber_led).turn_off().perform();
+          #endif
                 break;
               case 100:
                 id(red_led).turn_off().perform();

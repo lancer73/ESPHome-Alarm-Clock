@@ -5,7 +5,7 @@ esphome:
       then: 
         - if:
             condition:
-              lambda: 'return id(clock_wifi);'
+              lambda: 'return id(wifi_enabled);'
             then:
               wifi.enable:
     - priority: 800
@@ -917,8 +917,17 @@ sensor:
       then:
         - lambda: |-
             float temp_bright;
+            float range = id(max_brightness).state - id(min_brightness).state;
 
-            temp_bright = (15 / (id(max_brightness).state - id(min_brightness).state)) * (x - id(min_brightness).state);
+            // Guard against the user setting min == max (or max < min);
+            // divide-by-zero produces NaN which silently bypasses the clamps
+            // below (NaN comparisons are always false) and the (int) cast then
+            // gives undefined results.
+            if (range <= 0) {
+              temp_bright = (x >= id(max_brightness).state) ? 15 : 0;
+            } else {
+              temp_bright = (15 / range) * (x - id(min_brightness).state);
+            }
 
             if (temp_bright < 0) {
               temp_bright = 0;
@@ -1032,6 +1041,7 @@ binary_sensor:
                 if (id(current_year) < 2026) {
                   id(current_year) = 2200;
                 }
+                break;
               case 103:
                 id(time_changed) = true;
                 id(current_day)--;
@@ -1090,6 +1100,7 @@ binary_sensor:
                 break;
               case 112:
                 id(random_buzzer).toggle();
+                break;
               default:
                 if (id(updown_onoff).state) {
                   id(display_state).toggle();
@@ -1181,6 +1192,7 @@ binary_sensor:
                   }
                   id(current_day) = 1;
                 }
+                break;
               case 104:
                 id(display_onoff_minute)[0] = id(display_onoff_minute)[0] + 5;
                 if (id(display_onoff_minute)[0] > 55) {
@@ -1228,6 +1240,7 @@ binary_sensor:
                 break;
               case 112:
                 id(random_buzzer).toggle();
+                break;
               default:
                 if (id(updown_onoff).state) {
                   id(display_state).toggle();
@@ -1888,7 +1901,7 @@ display:
           } 
         #endif
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sd");
-          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%2d", (int)id(current_day), (int)id(current_month));
+          it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(current_day), (int)id(current_month));
           break;
         case 104:
         #ifndef HAS_LED
