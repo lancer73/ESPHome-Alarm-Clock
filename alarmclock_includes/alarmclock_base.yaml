@@ -1,6 +1,23 @@
 # Enable the wifi if such is configured
 esphome:
   on_boot:
+    - priority: -10
+      then:
+        - delay: 2s
+        - if:
+            condition:
+              lambda: 'return id(ble_tracking_enabled);'
+            then:
+              - lambda: |-
+                   id(bt_proxy).set_active(true);
+              - esp32_ble_tracker.start_scan:
+                  id: ble_tracker
+                  continuous: true
+            else:
+              - esp32_ble_tracker.stop_scan:
+                  id: ble_tracker
+              - lambda: |-
+                   id(bt_proxy).set_active(false);
     - priority: 250
       then: 
         - if:
@@ -176,6 +193,10 @@ globals:
     type: bool
     initial_value: "false"
     restore_value: no
+  - id: ble_tracking_enabled
+    type: bool
+    restore_value: true
+    initial_value: "false"
 
 i2c:
   #ESP32
@@ -612,6 +633,32 @@ switch:
             value: '0'
     web_server:
       sorting_group_id: alarm_control
+      
+  - platform: template
+    id: ble_tracking_switch
+    name: "BLE Tracking"
+    icon: mdi:bluetooth
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+    turn_on_action:
+      - lambda: |-
+          id(ble_tracking_enabled) = true;
+          id(bt_proxy).set_active(true);
+      - esp32_ble_tracker.start_scan:
+          id: ble_tracker
+          continuous: true
+
+    turn_off_action:
+      - lambda: |-
+          id(ble_tracking_enabled) = false;
+      - esp32_ble_tracker.stop_scan:
+          id: ble_tracker
+      - lambda: |-
+          id(bt_proxy).set_active(false);
+    web_server:
+      sorting_group_id: alarm_config
 
   - platform: template
     name: "Alarm"
@@ -1024,7 +1071,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 101:
+              case 102:
                 id(time_changed) = true;
                 id(current_minute)--;
                 if (id(current_minute) < 0) {
@@ -1035,14 +1082,14 @@ binary_sensor:
                   }
                 }
                 break;
-              case 102:
+              case 103:
                 id(time_changed) = true;
                 id(current_year)--;
                 if (id(current_year) < 2026) {
                   id(current_year) = 2200;
                 }
                 break;
-              case 103:
+              case 104:
                 id(time_changed) = true;
                 id(current_day)--;
                 if (id(current_day) < 1) {
@@ -1053,7 +1100,7 @@ binary_sensor:
                   id(current_day) = id(max_days)[id(current_month) - 1];
                 }
                 break;
-              case 104:
+              case 105:
                 id(display_onoff_minute)[0] = id(display_onoff_minute)[0] - 5;
                 if (id(display_onoff_minute)[0] < 0) {
                   id(display_onoff_minute)[0] = 55;
@@ -1063,7 +1110,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 105:
+              case 106:
                 id(display_onoff_minute)[1] = id(display_onoff_minute)[1] - 5;
                 if (id(display_onoff_minute)[1] < 0) {
                   id(display_onoff_minute)[1] = 55;
@@ -1073,32 +1120,32 @@ binary_sensor:
                   }
                 }
                 break;
-              case 106:
+              case 107:
                 ret_call.number_decrement(true);
                 ret_call.perform();
                 break;
-              case 107:
+              case 108:
                 on_call.number_decrement(true);
                 on_call.perform();
                 break;
-              case 108:
+              case 109:
                 off_call.number_decrement(true);
                 off_call.perform();
                 break;
-              case 109:
+              case 110:
                 displayfont_call.number_decrement(true);
                 displayfont_call.perform();
                 break;              
-              case 110:
+              case 111:
                 timeout_call.number_decrement(true);
                 timeout_call.perform();
                 break;
-              case 111:
+              case 112:
                 id(buzzer_pwm).stop();
                 mymelody_call.number_decrement(true);
                 mymelody_call.perform();
                 break;
-              case 112:
+              case 113:
                 id(random_buzzer).toggle();
                 break;
               default:
@@ -1164,7 +1211,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 101:
+              case 102:
                 id(time_changed) = true;
                 id(current_minute)++;
                 if (id(current_minute) > 59) {
@@ -1175,14 +1222,14 @@ binary_sensor:
                   }
                 }
                 break;
-              case 102:
+              case 103:
                 id(time_changed) = true;
                 id(current_year)++;
                 if (id(current_year) > 2200) {
                   id(current_year) = 2026;
                 }
                 break;
-              case 103:
+              case 104:
                 id(time_changed) = true;
                 id(current_day)++;
                 if (id(current_day) > id(max_days)[id(current_month) - 1]) {
@@ -1193,7 +1240,7 @@ binary_sensor:
                   id(current_day) = 1;
                 }
                 break;
-              case 104:
+              case 105:
                 id(display_onoff_minute)[0] = id(display_onoff_minute)[0] + 5;
                 if (id(display_onoff_minute)[0] > 55) {
                   id(display_onoff_minute)[0] = 0;
@@ -1203,7 +1250,7 @@ binary_sensor:
                   }
                 }
                 break;
-              case 105:
+              case 106:
                 id(display_onoff_minute)[1] = id(display_onoff_minute)[1] + 5;
                 if (id(display_onoff_minute)[1] > 55) {
                   id(display_onoff_minute)[1] = 0;
@@ -1213,32 +1260,32 @@ binary_sensor:
                   }
                 }
                 break;
-              case 106:
+              case 107:
                 ret_call.number_increment(true);
                 ret_call.perform();
                 break;
-              case 107:
+              case 108:
                 on_call.number_increment(true);
                 on_call.perform();
                 break;
-              case 108:
+              case 109:
                 off_call.number_increment(true);
                 off_call.perform();
                 break;
-              case 109:
+              case 110:
                 displayfont_call.number_increment(true);
                 displayfont_call.perform();
                 break;
-              case 110:
+              case 111:
                 timeout_call.number_increment(true);
                 timeout_call.perform();
                 break;
-              case 111:
+              case 112:
                 id(buzzer_pwm).stop();
                 mymelody_call.number_increment(true);
                 mymelody_call.perform();
                 break;
-              case 112:
+              case 113:
                 id(random_buzzer).toggle();
                 break;
               default:
@@ -1314,6 +1361,7 @@ binary_sensor:
                 if (id(wifi_enabled)) {
                   id(wifi_enabled) = false;
                   id(updown_onoff).turn_off();
+                  id(ble_tracking_switch).turn_off();
                   id(clock_wifi).disable();
                 } else {
                   id(wifi_enabled) = true;
@@ -1321,6 +1369,9 @@ binary_sensor:
                 }
                 break;
               case 101:
+                id(ble_tracking_switch).toggle();
+                break;
+              case 102:
                 if (id(time_changed)) {
                   int time_offset = now.hour - utcnow.hour;
 
@@ -1342,7 +1393,7 @@ binary_sensor:
                   id(time_changed) = false;
                 }
                 break;
-              case 102:
+              case 103:
                 if (id(time_changed)) {
                   int time_offset = now.year - utcnow.year;
 
@@ -1362,7 +1413,7 @@ binary_sensor:
                   id(time_changed) = false;
                 }
                 break;
-              case 103:
+              case 104:
                 if (id(time_changed)) {
                   int time_offset_m = now.month - utcnow.month;                                                                                                                                          
                   int time_offset_d = now.day_of_month - utcnow.day_of_month;
@@ -1384,19 +1435,19 @@ binary_sensor:
                   id(time_changed) = false;
                 }
                 break;
-              case 104:
               case 105:
               case 106:
               case 107:
               case 108:
               case 109:
+              case 110:
                 id(display_onoff).toggle();
                 break;
-              case 110:
-              case 112:
+              case 111:
+              case 113:
                 id(alarm_buzzer).toggle();
                 break;
-              case 111:
+              case 112:
                 if (id(buzzer_pwm).is_playing()) {
                   id(buzzer_pwm).stop();
                 } else {
@@ -1437,21 +1488,22 @@ binary_sensor:
               case 101:
               case 102:
               case 103:
+              case 104:
                 id(display_state).toggle();
                 break;
-              case 104:
               case 105:
               case 106:
               case 107:
               case 108:
               case 109:
+              case 110:
                 id(display_onoff).toggle();
                 break;
-              case 110:
-              case 112:
+              case 111:
+              case 113:
                 id(alarm_buzzer).toggle();
                 break;
-              case 111:
+              case 112:
                 if (id(playmymelody)) {
                   id(playmymelody) = false;
                 } else {
@@ -1502,21 +1554,24 @@ binary_sensor:
                     id(disp_line) = 0;
                   }
                 } else {
-                  if (id(disp_line) > 112) {
+                  if (id(disp_line) > 113) {
                     id(disp_line) = 0;
                   }
-                  if (id(disp_line) == 101) {
+                  if (id(disp_line) == 101 && !id(wifi_enabled)) {
+                    id(disp_line) = 102;
+                  }
+                  if (id(disp_line) == 102) {
                     auto time = id(esptime).now();
                     id(current_hour) = time.hour;
                     id(current_minute) = time.minute;
                     id(time_changed) = false;
                   }
-                  if (id(disp_line) == 102) {
+                  if (id(disp_line) == 103) {
                     auto time = id(esptime).now();
                     id(current_year) = time.year;
                     id(time_changed) = false;
                   }
-                  if (id(disp_line) == 103) {
+                  if (id(disp_line) == 104) {
                     auto time = id(esptime).now();
                     id(current_month) = time.month;
                     id(current_day) = time.day_of_month;
@@ -1743,7 +1798,17 @@ number:
     web_server:
       sorting_group_id: alarm_config
 
-    
+esp32_ble_tracker:
+  id: ble_tracker
+  scan_parameters:
+    interval: 320ms
+    window: 300ms
+    active: false
+
+bluetooth_proxy:
+  id: bt_proxy
+  active: false
+      
 # Use the spleen font dor alarm time display als it allows for 6 characters
 # Use matrix font for time. Only 5 characters in display, full height of display is used.
 font:
@@ -1877,6 +1942,14 @@ display:
           }
           break;
         case 101:
+          it.print(0,0, id(digit_font), TextAlign::TOP_LEFT, "BLE");
+        #ifndef HAS_LED
+          if (id(ble_tracking_enabled)) {
+            it.line(31,0,31,0);
+          } 
+        #endif
+          break;
+        case 102:
         #ifndef HAS_LED
           if (id(time_changed)) {
             it.line(31,0,31,0);
@@ -1885,7 +1958,7 @@ display:
           it.print(0,0, id(digit_font), TextAlign::TOP_LEFT, "St");
           it.printf(11,0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(current_hour),(int)id(current_minute));
           break;
-        case 102:
+        case 103:
         #ifndef HAS_LED
           if (id(time_changed)) {
             it.line(31,0,31,0);
@@ -1894,7 +1967,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sy");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%4d", (int)id(current_year));
           break;
-        case 103:
+        case 104:
         #ifndef HAS_LED
           if (id(time_changed)) {
             it.line(31,0,31,0);
@@ -1903,7 +1976,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Sd");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d", (int)id(current_day), (int)id(current_month));
           break;
-        case 104:
+        case 105:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1912,7 +1985,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "On");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[0], (int)id(display_onoff_minute)[0]);
           break;
-        case 105:
+        case 106:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1921,7 +1994,7 @@ display:
           it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Of");
           it.printf(11, 0, id(digit_font), TextAlign::TOP_LEFT, "%2d%02d",(int)id(display_onoff_hour)[1], (int)id(display_onoff_minute)[1]);
           break;
-        case 106:
+        case 107:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1929,7 +2002,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Dt %2ds", (int)id(disp_return).state);
           break;
-        case 107:
+        case 108:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1937,7 +2010,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Db %2dm", (int)id(on_before).state);
           break;
-        case 108:
+        case 109:
         #ifndef HAS_LED
           if (id(display_onoff).state) {
             it.line(31,0,31,0);
@@ -1945,7 +2018,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Da %2dm", (int)id(off_after).state);
           break;
-        case 109:
+        case 110:
           switch((int)id(displayfont).state) {
           case 1:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Df Segment,");
@@ -1961,7 +2034,7 @@ display:
             break;
           }
           break;
-        case 110:
+        case 111:
         #ifndef HAS_LED
           if (id(alarm_buzzer).state) {
             it.line(31,0,31,0);
@@ -1969,7 +2042,7 @@ display:
         #endif
           it.printf(0, 0, id(digit_font), TextAlign::TOP_LEFT, "At %2dm", (int)id(alarm_off).state);
           break;
-        case 111:
+        case 112:
           switch((int)id(mymelody).state) {
           case 0:
             it.print(0, 0, id(digit_font), TextAlign::TOP_LEFT, "Star Wars,");
@@ -2000,7 +2073,7 @@ display:
             break;
           }
           break;
-        case 112:
+        case 113:
         #ifndef HAS_LED                                                                                                                                                                        
           if (id(alarm_buzzer).state) {                                                                                                                                                        
             it.line(31,0,31,0);                                                                                                                                                                

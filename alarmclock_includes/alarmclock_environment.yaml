@@ -79,6 +79,7 @@ interval:
               case 110:
               case 111:
               case 112:
+              case 113:
                 if (id(tvoc).state > id(tvoc_warning).state) {
                   id(amber_led).turn_on().set_brightness(0.4 + (0.04 * id(disp_brightness))).perform();
                 } else {
