@@ -104,16 +104,18 @@ substitutions:
 esphome:
   name: alarm-clock
   friendly_name: "Alarm Clock"
-  min_version: 2024.6.0
+  min_version: 2026.5.0
   project: 
     name: "lancer73.alarm_clock"
-    version: "1.2.0"
+    version: "1.3.0"
 
 # Adapt this to you specific controller
 # If you are not using an ESP32 DevkitC v4
 esp32:
   board: esp32dev
   cpu_frequency: 240MHz
+  # Do not use esp-idf toolchain yet if you include LED and ENVIRONMENT packages. The package files defice BUILD flags using platformio_options. There is no esp-idf alternative yet
+  # toolchain: esp-idf 
   framework:
     type: esp-idf
     advanced:
@@ -126,8 +128,9 @@ api:
   reboot_timeout: 0s
     
 ota:
-  platform: esphome
-  password: !secret [YOUROTAPASSWORD]
+  - platform: esphome
+    password: !secret [YOUROTAPASSWORD]
+    allow_partition_access: true
 
 # Enable logging
 logger:
