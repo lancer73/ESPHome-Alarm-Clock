@@ -10,6 +10,7 @@ Alarm clock built in ESPhome with the following features:
 - Switchable led from HA to convey a message or reminder
 - Banner message functionality
 - Can work without wifi/home assistant. Most important settings are accessible from the alarm clock itself.
+- Can be used as a bluetooth proxy for tracking BLE beacons
 
 There are two different versions of the alarm clock. A full version with additional leds and environmental sensors and a light version. 3D print designs are included for both. The normal version has buttons at the top and sensors in the back, the light version has buttons on the front and a ligh sensor on the top.
 | <figure><img src="https://github.com/user-attachments/assets/9150e299-e841-41b1-9b82-796ef6b81ac7" align="left" width="400px"></figure> |<figure><img src="https://github.com/lancer73/ESPHome-Alarm-Clock/blob/60f0b53d30204f8d0f9722055e9881dc94b70db0/images/light.jpg" align="right" width="400px"></figure> |
@@ -134,9 +135,10 @@ Keep the display button pressed until the network address shows, or "Wifi" cross
 Press the display button again to set the year in the "Sy" display. Also here the top right pixel or red led will show up as a sign that the day has changed. Set the configured day by pressing the "On/Off" button. The pixel/led will go out if you do. And the press display again for setting the dat in de "Sd" screen.
 
 #### Other settings
-If you press the "Display" button repeatedly you will cycle through the settings. The first setting is the wifi. If the Wifi is enabled and working, it will show an IP address. If the Wifi is off, it wil show "Wifi" crossed out. Toggle the Wifi with the on/off button.
+If you press the "Display" button repeatedly you will cycle through the settings. The first setting is the wifi. If the Wifi is enabled and working, it will show an IP address. If the Wifi is off, it wil show "Wifi" crossed out. Toggle the Wifi with the on/off button. If you toggle of the wifi, you will also disable the BLE proxy.
 | Code | Setting | Explanation |
 |:-----|:--------|:------------|
+| BLE | BLE proxy | The alarm clock can be used as a bluetooth proxy for Home Assistant BLE beacond tracking. Enable/disable by pressing "on/off" |
 | St | Set time | Set the time and commit by pressing "on/off" |
 | Sy | Set year | Set the current year and commit by pressing "on/off" |
 | Sd | Set date | Set the day of the month and the month (ddmm) and commit by pressing "on/off" |
@@ -184,6 +186,7 @@ The following configurations will also influence the display state:
 |:-------|:--------|
 | Alarm | Will turn on when the alarm goes off. To be used in automation to turn on remote speakers or lights when the alarm goes off. Can also be switched on from home assistant. E.g. to synchronise alarms |
 | Alert now | Will invert the diplay show "ALARM" and sound a siren using the piezo buzzer. For connecting the alarm clock to a fire alarm, or just to get a teenager out of bed. Alarm can be turned off using a button on the clock. |
+| BLE Tracking | Toggles the Bluetooth proxy functionality for tracking BLE beacons |
 | Message | Will turn on/off the message/reminder led as a reminder for something, like putting the trash cans out or something else. |
 | Buzzer with alarm | When the switch is off, the buzzer will only sound if the connection with Home Assistant has been interrupted. Turn this off if you have an automation to pick up the state of the alarm switch. |
 | Buzzer random | Will eelect a random value for the next buzzer. This will actually change the Melody selector |
