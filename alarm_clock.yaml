@@ -107,7 +107,7 @@ esphome:
   min_version: 2026.5.0
   project: 
     name: "lancer73.alarm_clock"
-    version: "1.3.0"
+    version: "1.3.1"
 
 # Adapt this to you specific controller
 # If you are not using an ESP32 DevkitC v4
@@ -172,6 +172,7 @@ web_server:
   auth:
     username: !secret [YOURWEBACCOUNT]
     password: !secret [YOURWEBPASSWORD]
+    type: digest
   ota: False
   log: False
 
