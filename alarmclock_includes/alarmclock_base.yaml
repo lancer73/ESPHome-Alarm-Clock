@@ -408,6 +408,7 @@ time:
 
   - platform: ds1307
     id: esptime
+    timezone: ${timezone}
     on_time:
       - seconds: 0
         minutes: /1
